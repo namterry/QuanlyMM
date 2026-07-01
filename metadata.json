@@ -1,0 +1,6 @@
+{
+  "name": "Sample Development Management System",
+  "description": "Hệ thống Quản lý May Mẫu - Theo dõi vòng đời phát triển mã hàng (Style) từ giai đoạn Proto đến Production Ready.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
