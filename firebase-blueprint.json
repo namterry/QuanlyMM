@@ -1,0 +1,200 @@
+{
+  "entities": {
+    "Style": {
+      "title": "Style",
+      "description": "Represents a garment style and its multi-stage sample lifecycle workflow.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "styleCode": {
+          "type": "string"
+        },
+        "customer": {
+          "type": "string"
+        },
+        "season": {
+          "type": "string"
+        },
+        "buyer": {
+          "type": "string"
+        },
+        "factory": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "createdBy": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "styleCode",
+        "customer",
+        "season",
+        "buyer",
+        "factory",
+        "status",
+        "createdBy",
+        "createdAt"
+      ]
+    },
+    "Attachment": {
+      "title": "Attachment",
+      "description": "Represents technical documents uploaded to a specific workflow stage.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "stageId": {
+          "type": "string"
+        },
+        "fileType": {
+          "type": "string"
+        },
+        "fileName": {
+          "type": "string"
+        },
+        "fileUrl": {
+          "type": "string"
+        },
+        "fileSize": {
+          "type": "string"
+        },
+        "version": {
+          "type": "number"
+        },
+        "uploadedBy": {
+          "type": "string"
+        },
+        "uploadedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "stageId",
+        "fileType",
+        "fileName",
+        "fileUrl",
+        "fileSize",
+        "version",
+        "uploadedBy",
+        "uploadedAt"
+      ]
+    },
+    "ActivityLog": {
+      "title": "ActivityLog",
+      "description": "Activity log event tracking sample workflow updates.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "styleId": {
+          "type": "string"
+        },
+        "styleCode": {
+          "type": "string"
+        },
+        "entityType": {
+          "type": "string"
+        },
+        "entityId": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string"
+        },
+        "changedBy": {
+          "type": "string"
+        },
+        "changedByName": {
+          "type": "string"
+        },
+        "changedByRole": {
+          "type": "string"
+        },
+        "changedAt": {
+          "type": "string"
+        },
+        "oldValue": {
+          "type": "string"
+        },
+        "newValue": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "entityType",
+        "entityId",
+        "action",
+        "changedBy",
+        "changedByName",
+        "changedByRole",
+        "changedAt"
+      ]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "Push notification or alert for task delays, completions, etc.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "isRead": {
+          "type": "boolean"
+        },
+        "relatedStyleId": {
+          "type": "string"
+        },
+        "relatedStageId": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "message",
+        "isRead",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "styles": {
+      "schema": "Style",
+      "description": "Main style collection with nested stage list."
+    },
+    "attachments": {
+      "schema": "Attachment",
+      "description": "Collection of uploaded files categorized by stage."
+    },
+    "logs": {
+      "schema": "ActivityLog",
+      "description": "Activity audit logs."
+    },
+    "notifications": {
+      "schema": "Notification",
+      "description": "Real-time user notification and alert alerts."
+    }
+  }
+}
