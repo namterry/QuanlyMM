@@ -10,7 +10,7 @@ export const DEPARTMENTS: Department[] = [
 ];
 
 export const USERS: User[] = [
-  { id: 'user-admin', name: 'Nguyễn Quốc Nam (Admin)', email: 'admin@garment.com', departmentId: 'dept-mr', role: 'Admin', avatar: 'https://images.unsplash.com/photo-1568707043650-eb03f2536825?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MzM2fHxmYWNlfGVufDB8fDB8fHww' },
+  { id: 'user-admin', name: 'Nguyễn Quốc Nam (Admin)', email: 'Nguyenquocnam.tn@gmail.com', departmentId: 'dept-mr', role: 'Admin', avatar: 'https://images.unsplash.com/photo-1568707043650-eb03f2536825?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MzM2fHxmYWNlfGVufDB8fDB8fHww' },
   { id: 'user-mr1', name: 'Loan Phạm (Merchandiser)', email: 'hong.le@garment.com', departmentId: 'dept-mr', role: 'Merchandising', avatar: 'https://images.unsplash.com/photo-1601412436016-2cde285e3aad?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mjk5fHxmYWNlfGVufDB8fDB8fHww' },
   { id: 'user-pa1', name: 'Trần Thanh Phong (Pattern)', email: 'phong.tran@garment.com', departmentId: 'dept-pa', role: 'Pattern', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80' },
   { id: 'user-sr1', name: 'Phạm Quốc Dũng (Sample)', email: 'dung.pham@garment.com', departmentId: 'dept-sr', role: 'Sample Room', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80' },
