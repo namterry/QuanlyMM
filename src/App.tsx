@@ -17,10 +17,11 @@ import RoleSwitcher from './components/RoleSwitcher';
 import GarmentAI from './components/GarmentAI';
 import PersonnelManagerModal from './components/PersonnelManagerModal';
 import LanguageSelector from './components/LanguageSelector';
+import InstallPwaModal from './components/InstallPwaModal';
 import { useLanguage } from './i18n/LanguageContext';
 
 // Icons
-import { Layers, Kanban, Calendar, TrendingUp, History, Shield, Menu, X, Bell, Plus, Search, Sparkles } from 'lucide-react';
+import { Layers, Kanban, Calendar, TrendingUp, History, Shield, Menu, X, Bell, Plus, Search, Sparkles, Smartphone, Download } from 'lucide-react';
 
 export default function App() {
   const { t } = useLanguage();
@@ -30,6 +31,20 @@ export default function App() {
   const [selectedStyleId, setSelectedStyleId] = React.useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [headerSearch, setHeaderSearch] = React.useState('');
+
+  // PWA Install state
+  const [deferredPrompt, setDeferredPrompt] = React.useState<any>(null);
+  const [showInstallModal, setShowInstallModal] = React.useState(false);
+
+  // Listen for PWA beforeinstallprompt event
+  React.useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
 
   // Personnel state & simulation
   const [users, setUsers] = React.useState<User[]>(() => {
@@ -784,7 +799,7 @@ export default function App() {
             <span>{t.tabReports}</span>
           </button>
 
-          <div className="text-[9px] uppercase font-bold text-slate-500 px-3 py-1.5 tracking-wider font-sans pt-4">INTELLIGENCE</div>
+          <div className="text-[9px] uppercase font-bold text-slate-500 px-3 py-1.5 tracking-wider font-sans pt-4">INTELLIGENCE & APP</div>
           <button
             id="nav-tab-ai"
             onClick={() => { setActiveTab('ai'); setSelectedStyleId(null); }}
@@ -796,6 +811,15 @@ export default function App() {
           >
             <Sparkles className="w-4 h-4 shrink-0 text-slate-400" />
             <span>{t.tabAi}</span>
+          </button>
+
+          <button
+            id="nav-tab-install-pwa"
+            onClick={() => setShowInstallModal(true)}
+            className="w-full flex items-center gap-3 px-3 py-2 mt-1 rounded font-bold text-xs bg-gradient-to-r from-emerald-600/20 to-teal-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600/30 transition-all cursor-pointer shadow-xs"
+          >
+            <Smartphone className="w-4 h-4 shrink-0 text-emerald-400 animate-pulse" />
+            <span>{t.installApp} (iOS & Android)</span>
           </button>
         </nav>
 
@@ -883,6 +907,16 @@ export default function App() {
                 <Sparkles className="w-4 h-4 shrink-0" />
                 <span>Trợ lý AI (GarmentAI)</span>
               </button>
+
+              <div className="pt-2">
+                <button
+                  onClick={() => { setShowInstallModal(true); setMobileMenuOpen(false); }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded font-bold text-xs bg-gradient-to-r from-emerald-600/30 to-teal-600/30 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-600/40 transition-all cursor-pointer"
+                >
+                  <Smartphone className="w-4 h-4 shrink-0 text-emerald-400 animate-pulse" />
+                  <span>{t.installApp} (iOS & Android)</span>
+                </button>
+              </div>
             </nav>
 
             {/* Profile */}
@@ -960,6 +994,19 @@ export default function App() {
 
           {/* Right quick actions */}
           <div className="flex items-center gap-2.5">
+            {/* Install App Button */}
+            <button
+              id="btn-pwa-install-header"
+              onClick={() => setShowInstallModal(true)}
+              title="Cài đặt ứng dụng trên iPhone (iOS) & Android"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer shrink-0 animate-pulse"
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span className="font-sans text-[11px] font-bold hidden xs:inline">{t.installApp}</span>
+            </button>
+
+            <div className="w-px h-5 bg-slate-200 hidden xs:block"></div>
+
             {/* Language Selector Component */}
             <LanguageSelector />
 
@@ -1163,6 +1210,14 @@ export default function App() {
           onResetUsers={handleResetUsers}
         />
       )}
+
+      {/* PWA App Installation Modal for iOS & Android */}
+      <InstallPwaModal
+        isOpen={showInstallModal}
+        onClose={() => setShowInstallModal(false)}
+        deferredPrompt={deferredPrompt}
+        setDeferredPrompt={setDeferredPrompt}
+      />
     </div>
   );
 }

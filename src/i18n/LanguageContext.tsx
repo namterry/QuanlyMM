@@ -114,6 +114,25 @@ export interface Translations {
   roleDescription: string;
   allAccess: string;
   deptLimit: string;
+
+  // PWA & App Installation
+  installApp: string;
+  installAppTitle: string;
+  installAppSubtitle: string;
+  iosTab: string;
+  androidTab: string;
+  desktopTab: string;
+  iosStep1: string;
+  iosStep2: string;
+  iosStep3: string;
+  iosStep4: string;
+  androidStep1: string;
+  androidStep2: string;
+  androidStep3: string;
+  androidStep4: string;
+  pwaDirectInstallBtn: string;
+  installedSuccess: string;
+  close: string;
 }
 
 const translations: Record<Language, Translations> = {
@@ -229,6 +248,25 @@ const translations: Record<Language, Translations> = {
     roleDescription: 'Chọn một nhân sự dưới đây để đóng vai tương tác với các Stage:',
     allAccess: 'Toàn quyền',
     deptLimit: 'Giới hạn Phòng ban',
+
+    // PWA & App Installation
+    installApp: 'Cài đặt App',
+    installAppTitle: 'Cài đặt Ứng dụng Garment Tracker',
+    installAppSubtitle: 'Cài ứng dụng lên điện thoại iPhone (iOS) hoặc Android để sử dụng mượt mà như app cài từ App Store / Google Play.',
+    iosTab: 'iPhone (iOS)',
+    androidTab: 'Điện thoại Android',
+    desktopTab: 'Máy tính (PC/Mac)',
+    iosStep1: 'Mở trang web này bằng trình duyệt Safari trên iPhone/iPad.',
+    iosStep2: 'Bấm vào nút Chia sẻ (Share 📤) ở thanh công cụ phía dưới màn hình Safari.',
+    iosStep3: 'Cuộn xuống danh sách tính năng và chọn "Thêm vào Màn hình chính" ("Add to Home Screen" ➕).',
+    iosStep4: 'Bấm "Thêm" (Add) ở góc trên bên phải màn hình để hoàn tất cài đặt.',
+    androidStep1: 'Mở trang web này bằng trình duyệt Google Chrome trên thiết bị Android.',
+    androidStep2: 'Bấm vào biểu tượng Menu 3 chấm (⋮) ở góc trên bên phải trình duyệt.',
+    androidStep3: 'Chọn "Cài đặt ứng dụng" ("Install app") hoặc "Thêm vào màn hình chính".',
+    androidStep4: 'Xác nhận "Cài đặt" để hiển thị icon ứng dụng trực tiếp trên màn hình chính.',
+    pwaDirectInstallBtn: 'Tải & Cài đặt ngay (1-Click)',
+    installedSuccess: 'Ứng dụng đã sẵn sàng trên màn hình chính!',
+    close: 'Đóng',
   },
   en: {
     // Navigation & Header
@@ -342,6 +380,25 @@ const translations: Record<Language, Translations> = {
     roleDescription: 'Select a user below to switch operational role & stage permissions:',
     allAccess: 'Full Access',
     deptLimit: 'Dept Restricted',
+
+    // PWA & App Installation
+    installApp: 'Install App',
+    installAppTitle: 'Install Garment Tracker App',
+    installAppSubtitle: 'Install on your iPhone (iOS) or Android device for 1-tap home screen access and smooth native performance.',
+    iosTab: 'iPhone (iOS)',
+    androidTab: 'Android Device',
+    desktopTab: 'Desktop (PC/Mac)',
+    iosStep1: 'Open this website using the Safari browser on your iPhone/iPad.',
+    iosStep2: 'Tap the Share button (📤) in Safari\'s bottom toolbar.',
+    iosStep3: 'Scroll down and select "Add to Home Screen" (➕).',
+    iosStep4: 'Tap "Add" in the top right corner to complete installation.',
+    androidStep1: 'Open this website using Google Chrome on Android.',
+    androidStep2: 'Tap the 3 dots Menu icon (⋮) in the top right corner.',
+    androidStep3: 'Select "Install app" or "Add to Home screen".',
+    androidStep4: 'Confirm "Install" to place the icon on your home screen.',
+    pwaDirectInstallBtn: 'Install Now (1-Click)',
+    installedSuccess: 'App is ready on your Home Screen!',
+    close: 'Close',
   }
 };
 
