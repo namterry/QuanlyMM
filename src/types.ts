@@ -22,11 +22,12 @@ export type StageType =
   | 'Sales Sample'
   | 'TOP Sample'
   | 'Final Approval'
-  | 'Production Ready';
+  | 'Production Ready'
+  | string;
 
 export type StageStatus = 'Pending' | 'InProgress' | 'Completed' | 'OnHold' | 'Cancelled';
 
-export type FileType = 'Pattern' | 'DXF' | 'TechPack' | 'BOM' | 'MeasurementSheet' | 'Photo' | 'Email';
+export type FileType = 'Pattern' | 'DXF' | 'TechPack' | 'BOM' | 'MeasurementSheet' | 'Photo' | 'Email' | 'Excel' | 'PDF';
 
 export interface Attachment {
   id: string;
@@ -47,6 +48,8 @@ export interface Stage {
   requestDate: string;
   deadline: string;
   actualCompletionDate?: string;
+  sentDate?: string; // Ngày gửi sample
+  productionDate?: string; // Ngày đưa vào sản xuất
   assigneeId?: string; // User ID
   status: StageStatus;
   note: string;
@@ -62,6 +65,7 @@ export interface Style {
   season: string;
   buyer: string;
   factory: string;
+  driveUrl?: string; // Đường dẫn Google Drive
   status: StyleStatus;
   createdBy: string;
   createdAt: string;

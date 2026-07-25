@@ -3,7 +3,8 @@ import { Style, Stage, StageStatus, User, Attachment, FileType, ActivityLog, Rol
 import { USERS } from '../data/initialData';
 import {
   ArrowLeft, Calendar, UserCheck, CheckCircle2, Clock, AlertTriangle, FileText, Upload,
-  Plus, History, ShieldAlert, Sparkles, AlertCircle, RefreshCw
+  Plus, History, ShieldAlert, Sparkles, AlertCircle, RefreshCw, Pencil, Trash2, Download,
+  FileSpreadsheet, Image, ExternalLink, FileCode
 } from 'lucide-react';
 
 interface StyleDetailProps {
@@ -11,8 +12,11 @@ interface StyleDetailProps {
   currentUser: User;
   onBack: () => void;
   onUpdateStage: (stageId: string, updatedFields: Partial<Stage>) => void;
-  onAddAttachment: (stageId: string, fileType: FileType, fileName: string, fileSize: string) => void;
+  onAddAttachment: (stageId: string, fileType: FileType, fileName: string, fileSize: string, fileUrl?: string) => void;
+  onDeleteAttachment?: (attachmentId: string) => void;
   onUpdateStyleStatus: (styleId: string, status: Style['status']) => void;
+  onUpdateStyle: (styleId: string, updatedFields: Partial<Style>) => void;
+  onDeleteStyle: (styleId: string) => void;
   attachments: Attachment[];
   logs: ActivityLog[];
 }
@@ -23,7 +27,10 @@ export default function StyleDetail({
   onBack,
   onUpdateStage,
   onAddAttachment,
+  onDeleteAttachment,
   onUpdateStyleStatus,
+  onUpdateStyle,
+  onDeleteStyle,
   attachments,
   logs
 }: StyleDetailProps) {
@@ -37,6 +44,34 @@ export default function StyleDetail({
   // File Upload fields
   const [uploadFileType, setUploadFileType] = React.useState<FileType>('Pattern');
   const [uploadFileName, setUploadFileName] = React.useState('');
+  const [selectedRealFile, setSelectedRealFile] = React.useState<File | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  // Edit Style modal state
+  const [showEditStyleModal, setShowEditStyleModal] = React.useState(false);
+  const [editStyleCode, setEditStyleCode] = React.useState(style.styleCode);
+  const [editCustomer, setEditCustomer] = React.useState(style.customer);
+  const [editSeason, setEditSeason] = React.useState(style.season);
+  const [editBuyer, setEditBuyer] = React.useState(style.buyer);
+  const [editFactory, setEditFactory] = React.useState(style.factory);
+  const [editDriveUrl, setEditDriveUrl] = React.useState(style.driveUrl || '');
+  const [editCreatedAt, setEditCreatedAt] = React.useState(style.createdAt ? style.createdAt.slice(0, 10) : '');
+  const [editStatus, setEditStatus] = React.useState<Style['status']>(style.status);
+
+  // Delete Style confirmation modal state
+  const [showDeleteStyleConfirm, setShowDeleteStyleConfirm] = React.useState(false);
+
+  // Keep edit state in sync with prop changes
+  React.useEffect(() => {
+    setEditStyleCode(style.styleCode);
+    setEditCustomer(style.customer);
+    setEditSeason(style.season);
+    setEditBuyer(style.buyer);
+    setEditFactory(style.factory);
+    setEditDriveUrl(style.driveUrl || '');
+    setEditCreatedAt(style.createdAt ? style.createdAt.slice(0, 10) : '');
+    setEditStatus(style.status);
+  }, [style]);
 
   // Get logs related to this style
   const styleLogs = logs.filter(log => log.styleId === style.id);
@@ -47,41 +82,18 @@ export default function StyleDetail({
       return { allowed: true };
     }
 
-    // Role department limit
-    // Admin, Merchandising have all access.
-    // Others can only edit stages where they are the assignee or matches their department
     if (stage.assigneeId === currentUser.id) {
       return { allowed: true };
     }
 
-    // Match departments
-    // Pattern Role -> dept-pa
-    // Sample Room -> dept-sr
-    // CAD -> dept-cad
-    // IE -> dept-ie
-    // QA -> dept-qa
-    const departmentMap: Record<Role, string> = {
-      'Admin': 'dept-mr',
-      'Merchandising': 'dept-mr',
-      'Pattern': 'dept-pa',
-      'Sample Room': 'dept-sr',
-      'CAD': 'dept-cad',
-      'IE': 'dept-ie',
-      'QA': 'dept-qa'
-    };
-
-    const userDeptId = currentUser.departmentId;
     const assignee = USERS.find(u => u.id === stage.assigneeId);
-    
-    if (assignee && assignee.departmentId === userDeptId) {
+    if (assignee && assignee.departmentId === currentUser.departmentId) {
       return { allowed: true };
     }
 
-    // Fallback: If stage has no assignee, can they claim it if they are from the relevant department?
-    // Let's say yes, if they match.
     return {
       allowed: false,
-      reason: `Bạn ở bộ phận "${currentUser.role}". Chỉ Admin, Merchandising hoặc Nhân viên được phân công (${assignee ? assignee.name : 'Không rõ'}) mới được quyền sửa.`
+      reason: `Bạn ở bộ phận "${currentUser.role}". Chỉ Admin, Merchandising hoặc Nhân viên được phân công mới được quyền sửa.`
     };
   };
 
@@ -126,6 +138,27 @@ export default function StyleDetail({
     onUpdateStage(selectedStage.id, { note });
   };
 
+  // Auto-detect file type from extension
+  const detectFileType = (fileName: string): FileType => {
+    const ext = fileName.split('.').pop()?.toLowerCase() || '';
+    if (['xlsx', 'xls', 'csv'].includes(ext)) return 'Excel';
+    if (['pdf'].includes(ext)) return 'PDF';
+    if (['dxf', 'pds', 'plt', 'pat', 'dwg', 'zip', 'rar'].includes(ext)) return 'Pattern';
+    if (['png', 'jpg', 'jpeg', 'webp', 'svg'].includes(ext)) return 'Photo';
+    if (['doc', 'docx'].includes(ext)) return 'TechPack';
+    return uploadFileType;
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedRealFile(file);
+      setUploadFileName(file.name);
+      const autoType = detectFileType(file.name);
+      setUploadFileType(autoType);
+    }
+  };
+
   const handleUploadFile = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedStage || !uploadFileName) return;
@@ -136,10 +169,59 @@ export default function StyleDetail({
       return;
     }
 
-    // Simulate S3 presigned URL upload & filesize
-    const randomSize = `${(Math.random() * 5 + 1).toFixed(1)} MB`;
-    onAddAttachment(selectedStage.id, uploadFileType, uploadFileName, randomSize);
+    let fileSize = `${(Math.random() * 5 + 1).toFixed(1)} MB`;
+    let fileUrl = '#';
+
+    if (selectedRealFile) {
+      const sizeMB = (selectedRealFile.size / (1024 * 1024)).toFixed(2);
+      fileSize = `${sizeMB} MB`;
+      fileUrl = URL.createObjectURL(selectedRealFile);
+    }
+
+    onAddAttachment(selectedStage.id, uploadFileType, uploadFileName, fileSize, fileUrl);
     setUploadFileName('');
+    setSelectedRealFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleSaveStyleEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editStyleCode || !editCustomer) return;
+
+    onUpdateStyle(style.id, {
+      styleCode: editStyleCode,
+      customer: editCustomer,
+      season: editSeason,
+      buyer: editBuyer,
+      factory: editFactory,
+      driveUrl: editDriveUrl,
+      createdAt: editCreatedAt ? new Date(editCreatedAt).toISOString() : style.createdAt,
+      status: editStatus
+    });
+
+    setShowEditStyleModal(false);
+  };
+
+  const handleConfirmDeleteStyle = () => {
+    onDeleteStyle(style.id);
+    setShowDeleteStyleConfirm(false);
+  };
+
+  // Helper icon by file type
+  const renderFileTypeIcon = (type: FileType) => {
+    switch (type) {
+      case 'Excel':
+        return <FileSpreadsheet className="w-4 h-4 text-emerald-600" />;
+      case 'PDF':
+        return <FileText className="w-4 h-4 text-rose-600" />;
+      case 'Pattern':
+      case 'DXF':
+        return <FileCode className="w-4 h-4 text-purple-600" />;
+      case 'Photo':
+        return <Image className="w-4 h-4 text-amber-600" />;
+      default:
+        return <FileText className="w-4 h-4 text-blue-600" />;
+    }
   };
 
   // Helper to color stages
@@ -188,7 +270,7 @@ export default function StyleDetail({
 
   return (
     <div className="space-y-6" id="style-detail-root">
-      {/* Navigation bar & Title */}
+      {/* Navigation bar & Title & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div className="flex items-center gap-3">
           <button
@@ -210,26 +292,70 @@ export default function StyleDetail({
           </div>
         </div>
 
-        {/* Change style state */}
-        <div className="flex items-center gap-2 self-start sm:self-center">
-          <span className="text-xs text-slate-400 font-sans font-medium shrink-0">Trạng thái mã:</span>
-          <select
-            id="select-style-status-update"
-            value={style.status}
-            onChange={e => onUpdateStyleStatus(style.id, e.target.value as Style['status'])}
-            className="bg-slate-50 border border-slate-200 text-slate-700 rounded-xl px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+        {/* Action controls: Google Drive link, Edit, Delete & Change style state */}
+        <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-center">
+          {style.driveUrl ? (
+            <a
+              id="btn-open-google-drive"
+              href={style.driveUrl.startsWith('http') ? style.driveUrl : `https://${style.driveUrl}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Mở Google Drive xem thông tin, hình ảnh liên quan đến style"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-300 text-emerald-800 hover:bg-emerald-100 text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Google Drive</span>
+            </a>
+          ) : (
+            <button
+              id="btn-add-google-drive"
+              onClick={() => setShowEditStyleModal(true)}
+              title="Thêm link Google Drive"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs font-semibold rounded-xl transition-all cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5 text-blue-600" />
+              <span>+ Link Drive</span>
+            </button>
+          )}
+
+          <button
+            id="btn-edit-style-info"
+            onClick={() => setShowEditStyleModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl transition-all shadow-sm cursor-pointer"
           >
-            <option value="Active">Active (May Mẫu)</option>
-            <option value="Completed">Completed (Hoàn Tất)</option>
-            <option value="OnHold">OnHold (Tạm Hoãn)</option>
-            <option value="Cancelled">Cancelled (Hủy Mẫu)</option>
-          </select>
+            <Pencil className="w-3.5 h-3.5 text-blue-600" />
+            <span>Chỉnh sửa thông tin</span>
+          </button>
+
+          <button
+            id="btn-delete-style-info"
+            onClick={() => setShowDeleteStyleConfirm(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 text-xs font-semibold rounded-xl transition-all shadow-sm cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Xóa đơn hàng</span>
+          </button>
+
+          <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+            <span className="text-xs text-slate-400 font-sans font-medium shrink-0">Trạng thái:</span>
+            <select
+              id="select-style-status-update"
+              value={style.status}
+              onChange={e => onUpdateStyleStatus(style.id, e.target.value as Style['status'])}
+              className="bg-slate-50 border border-slate-200 text-slate-700 rounded-xl px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="Active">Active (May Mẫu)</option>
+              <option value="Completed">Completed (Hoàn Tất)</option>
+              <option value="OnHold">OnHold (Tạm Hoãn)</option>
+              <option value="Cancelled">Cancelled (Hủy Mẫu)</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* Visual Sequence of Configured Stages (Workflow progress bar) */}
+      {/* Visual Sequence of Configured Stages */}
       <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-        <h3 className="font-sans font-semibold text-slate-800 text-sm">Vòng đời May mẫu (Configured Workflow Workflow)</h3>
+        <h3 className="font-sans font-semibold text-slate-800 text-sm">Vòng đời May mẫu (Configured Workflow)</h3>
         
         {/* Horizontal steps flow */}
         <div className="relative flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 md:gap-2">
@@ -254,7 +380,6 @@ export default function StyleDetail({
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold border-2 transition-all ${colors.bg}`}>
                     {index + 1}
                   </div>
-                  {/* Line element (only on desktop) */}
                   {!isLast && (
                     <div className="hidden md:block absolute left-8 top-1/2 w-[calc(100vw/12)] h-0.5 bg-slate-200 -z-10" />
                   )}
@@ -277,7 +402,7 @@ export default function StyleDetail({
       {/* Detail Grid: Edit Form (Left), Document manager & History trail (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* Left column: Stage Configuration / Editing Form (7/12 width) */}
+        {/* Left column: Stage Configuration / Editing Form */}
         {selectedStage ? (
           <div className="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
             
@@ -343,66 +468,136 @@ export default function StyleDetail({
             </div>
 
             {/* Configuration form parameters */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600 font-sans">Ngày yêu cầu (Request Date)</label>
-                <div className="relative">
-                  <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <div className="space-y-4">
+              {/* Stage Type Label Customizer */}
+              <div className="space-y-1.5 bg-blue-50/40 p-3 rounded-xl border border-blue-100">
+                <label className="text-xs font-bold text-slate-800 font-sans flex items-center gap-1.5">
+                  <Pencil className="w-3.5 h-3.5 text-blue-600" />
+                  Đổi tên Nhãn phân loại Giai đoạn (Stage Label)
+                </label>
+                <div className="flex gap-2">
                   <input
-                    id="input-stage-request-date"
-                    type="date"
-                    value={selectedStage.requestDate}
-                    onChange={e => onUpdateStage(selectedStage.id, { requestDate: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-700 font-sans focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    id="input-stage-type-custom"
+                    type="text"
+                    placeholder="VD: Sale Samples, Production, Mẫu Chào Hàng..."
+                    value={selectedStage.stageType}
+                    onChange={e => onUpdateStage(selectedStage.id, { stageType: e.target.value })}
+                    className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 font-sans"
                   />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600 font-sans">Hạn hoàn thành (Deadline)</label>
-                <div className="relative">
-                  <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    id="input-stage-deadline"
-                    type="date"
-                    value={selectedStage.deadline}
-                    onChange={e => onUpdateStage(selectedStage.id, { deadline: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-700 font-sans focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600 font-sans">Nhân viên Phụ trách (Assignee)</label>
-                <div className="relative">
-                  <UserCheck className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <select
-                    id="select-stage-assignee"
-                    value={selectedStage.assigneeId || ''}
-                    onChange={e => handleUpdateAssignee(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-700 font-sans focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    id="select-stage-type-preset"
+                    value={['Proto Sample', 'Fit Sample', 'PP Sample', 'Size Set Sample', 'Sales Sample', 'TOP Sample', 'Final Approval', 'Production Ready', 'Sale Samples', 'Production'].includes(selectedStage.stageType) ? selectedStage.stageType : 'Custom'}
+                    onChange={e => {
+                      if (e.target.value !== 'Custom') {
+                        onUpdateStage(selectedStage.id, { stageType: e.target.value });
+                      }
+                    }}
+                    className="bg-white border border-slate-200 text-slate-700 rounded-xl px-2.5 py-1.5 text-xs font-sans"
                   >
-                    <option value="">Chưa phân công nhân viên</option>
-                    {USERS.map(u => (
-                      <option key={u.id} value={u.id}>
-                        {u.name} ({u.role})
-                      </option>
-                    ))}
+                    <option value="Proto Sample">Proto Sample</option>
+                    <option value="Fit Sample">Fit Sample</option>
+                    <option value="PP Sample">PP Sample</option>
+                    <option value="Size Set Sample">Size Set Sample</option>
+                    <option value="Sales Sample">Sales Sample</option>
+                    <option value="Sale Samples">Sale Samples</option>
+                    <option value="TOP Sample">TOP Sample</option>
+                    <option value="Final Approval">Final Approval</option>
+                    <option value="Production Ready">Production Ready</option>
+                    <option value="Production">Production</option>
+                    <option value="Custom">-- Tùy chỉnh --</option>
                   </select>
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-600 font-sans">Ngày hoàn thành thực tế</label>
-                <div className="relative">
-                  <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    id="input-stage-actual-completion"
-                    type="date"
-                    value={selectedStage.actualCompletionDate || ''}
-                    onChange={e => onUpdateStage(selectedStage.id, { actualCompletionDate: e.target.value || undefined })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-700 font-sans focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600 font-sans">Ngày tạo / Yêu cầu mẫu (Request Date)</label>
+                  <div className="relative">
+                    <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      id="input-stage-request-date"
+                      type="date"
+                      value={selectedStage.requestDate}
+                      onChange={e => onUpdateStage(selectedStage.id, { requestDate: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-700 font-sans focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600 font-sans">Hạn chót hoàn thành (Deadline)</label>
+                  <div className="relative">
+                    <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      id="input-stage-deadline"
+                      type="date"
+                      value={selectedStage.deadline}
+                      onChange={e => onUpdateStage(selectedStage.id, { deadline: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-700 font-sans focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600 font-sans">Ngày gửi Sample cho Buyer (Sent Date)</label>
+                  <div className="relative">
+                    <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      id="input-stage-sent-date"
+                      type="date"
+                      value={selectedStage.sentDate || ''}
+                      onChange={e => onUpdateStage(selectedStage.id, { sentDate: e.target.value || undefined })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-700 font-sans focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600 font-sans">Ngày vào sản xuất đại trà (Production Date)</label>
+                  <div className="relative">
+                    <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      id="input-stage-production-date"
+                      type="date"
+                      value={selectedStage.productionDate || ''}
+                      onChange={e => onUpdateStage(selectedStage.id, { productionDate: e.target.value || undefined })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-700 font-sans focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600 font-sans">Nhân viên Phụ trách (Assignee)</label>
+                  <div className="relative">
+                    <UserCheck className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <select
+                      id="select-stage-assignee"
+                      value={selectedStage.assigneeId || ''}
+                      onChange={e => handleUpdateAssignee(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-700 font-sans focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Chưa phân công nhân viên</option>
+                      {USERS.map(u => (
+                        <option key={u.id} value={u.id}>
+                          {u.name} ({u.role})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600 font-sans">Ngày hoàn thành thực tế</label>
+                  <div className="relative">
+                    <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      id="input-stage-actual-completion"
+                      type="date"
+                      value={selectedStage.actualCompletionDate || ''}
+                      onChange={e => onUpdateStage(selectedStage.id, { actualCompletionDate: e.target.value || undefined })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-700 font-sans focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -420,42 +615,67 @@ export default function StyleDetail({
               />
             </div>
 
-            {/* Simulated S3 Presigned Document Uploader */}
-            <div className="border border-slate-100 rounded-2xl p-4 bg-slate-50/50 space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
-                <h4 className="text-xs font-bold text-slate-700 font-sans flex items-center gap-1.5">
+            {/* Real Document & Pattern File Uploader */}
+            <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50/70 space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <h4 className="text-xs font-bold text-slate-800 font-sans flex items-center gap-1.5">
                   <Upload className="w-3.5 h-3.5 text-blue-600" />
-                  Tải lên tài liệu mẫu (AWS S3 Presigned URL)
+                  Tải lên File Tài liệu (Excel, PDF) & File Rập (CAD/Pattern)
                 </h4>
-                <span className="text-[10px] font-mono text-slate-400">Version Auto Increment</span>
+                <span className="text-[10px] font-mono text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded">
+                  Hỗ trợ: .xlsx, .pdf, .dxf, .pds, .zip
+                </span>
               </div>
 
-              <form onSubmit={handleUploadFile} className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-end">
+              {/* File Drop/Selector area */}
+              <div className="border-2 border-dashed border-slate-300 hover:border-blue-500 bg-white rounded-xl p-3 text-center cursor-pointer transition-all">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  id="file-input-upload"
+                  onChange={handleFileSelect}
+                  accept=".xlsx,.xls,.csv,.pdf,.dxf,.pds,.plt,.pat,.zip,.rar,.dwg,.doc,.docx,image/*"
+                  className="hidden"
+                />
+                <label htmlFor="file-input-upload" className="cursor-pointer block space-y-1">
+                  <div className="flex items-center justify-center gap-2 text-blue-600 font-semibold text-xs font-sans">
+                    <Upload className="w-4 h-4" />
+                    <span>{selectedRealFile ? `Đã chọn: ${selectedRealFile.name}` : 'Bấm vào đây để chọn File từ máy tính (Excel, PDF, Rập...)'}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400">
+                    Tự động nhận diện định dạng file.
+                  </p>
+                </label>
+              </div>
+
+              <form onSubmit={handleUploadFile} className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-end pt-1">
                 <div className="space-y-1 flex-1">
-                  <label className="text-[10px] text-slate-500 font-sans block">Loại file tài liệu</label>
+                  <label className="text-[10px] text-slate-500 font-sans block">Phân loại tài liệu</label>
                   <select
                     id="select-upload-file-type"
                     value={uploadFileType}
                     onChange={e => setUploadFileType(e.target.value as FileType)}
                     className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 font-sans"
                   >
-                    <option value="Pattern">Rập giấy / Rập rải (Pattern)</option>
-                    <option value="DXF">Định dạng CAD (DXF)</option>
-                    <option value="TechPack">Tài liệu kỹ thuật (TechPack)</option>
-                    <option value="BOM">Định mức vật tư (BOM)</option>
-                    <option value="MeasurementSheet">Bảng thông số (MeasurementSheet)</option>
-                    <option value="Photo">Hình ảnh Fitting (Photo)</option>
-                    <option value="Email">Email phê duyệt (Email)</option>
+                    <option value="Excel">📊 Bảng tính Excel (.xlsx, .xls, .csv)</option>
+                    <option value="PDF">📄 Tài liệu PDF (.pdf)</option>
+                    <option value="Pattern">📐 File Rập thiết kế (.dxf, .pds, .plt, .zip)</option>
+                    <option value="DXF">📐 File CAD may mẫu (.dxf)</option>
+                    <option value="TechPack">📘 TechPack / Hướng dẫn kỹ thuật</option>
+                    <option value="BOM">📋 Định mức nguyên phụ liệu (BOM)</option>
+                    <option value="MeasurementSheet">📏 Bảng thông số kích thước</option>
+                    <option value="Photo">🖼️ Hình ảnh mẫu / Fitting (Photo)</option>
+                    <option value="Email">✉️ Email phê duyệt</option>
                   </select>
                 </div>
 
                 <div className="space-y-1 flex-1">
-                  <label className="text-[10px] text-slate-500 font-sans block">Tên file tài liệu</label>
+                  <label className="text-[10px] text-slate-500 font-sans block">Tên hiển thị tài liệu</label>
                   <input
                     id="input-upload-file-name"
                     type="text"
                     required
-                    placeholder="VD: Rap_SizeSet_V2.dxf"
+                    placeholder="VD: Bang_Thong_So_Garment_2026.xlsx"
                     value={uploadFileName}
                     onChange={e => setUploadFileName(e.target.value)}
                     className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 placeholder-slate-400 font-sans"
@@ -465,10 +685,10 @@ export default function StyleDetail({
                 <button
                   id="btn-trigger-upload-file"
                   type="submit"
-                  className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-lg text-xs font-semibold font-sans transition-all flex items-center justify-center gap-1.5 shrink-0 h-[30px]"
+                  className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-lg text-xs font-semibold font-sans transition-all flex items-center justify-center gap-1.5 shrink-0 h-[34px] cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  Tải lên
+                  <span>Xác nhận Tải lên</span>
                 </button>
               </form>
             </div>
@@ -479,15 +699,20 @@ export default function StyleDetail({
           </div>
         )}
 
-        {/* Right column: Document Archive & History audit trail (5/12 width) */}
+        {/* Right column: Document Archive & History audit trail */}
         <div className="lg:col-span-5 space-y-6">
           
           {/* Documents Archive */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-            <h3 className="font-sans font-semibold text-slate-800 text-sm flex items-center gap-2">
-              <FileText className="w-4 h-4 text-slate-600" />
-              Kho lưu trữ tài liệu ({selectedStage ? selectedStage.stageType : 'Tổng quan'})
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-sans font-semibold text-slate-800 text-sm flex items-center gap-2">
+                <FileText className="w-4 h-4 text-slate-600" />
+                Kho lưu trữ tài liệu ({selectedStage ? selectedStage.stageType : 'Tổng quan'})
+              </h3>
+              <span className="text-[10px] bg-slate-100 text-slate-600 font-mono font-bold px-2 py-0.5 rounded">
+                {attachments.filter(a => a.stageId === selectedStageId).length} file
+              </span>
+            </div>
 
             <div className="space-y-2.5">
               {(() => {
@@ -496,7 +721,7 @@ export default function StyleDetail({
                 if (stageAttachments.length === 0) {
                   return (
                     <div className="text-center py-6 border border-dashed border-slate-200 rounded-xl text-slate-400 text-xs font-sans">
-                      Không có tài liệu đính kèm cho giai đoạn này.
+                      Chưa có tài liệu đính kèm cho giai đoạn này. Hãy tải lên ở khung bên trái.
                     </div>
                   );
                 }
@@ -505,25 +730,49 @@ export default function StyleDetail({
                   <div
                     key={att.id}
                     id={`attachment-card-${att.id}`}
-                    className="flex items-center justify-between p-3 border border-slate-100 rounded-xl bg-slate-50/50 hover:bg-slate-50 transition-all"
+                    className="flex items-center justify-between p-3 border border-slate-200 rounded-xl bg-slate-50/50 hover:bg-slate-50 transition-all gap-2"
                   >
-                    <div className="flex items-start gap-2.5">
-                      <div className="bg-blue-50 text-blue-600 p-2 rounded-lg shrink-0 mt-0.5">
-                        <FileText className="w-4 h-4" />
+                    <div className="flex items-start gap-2.5 overflow-hidden">
+                      <div className="bg-white border border-slate-200 p-2 rounded-lg shrink-0 mt-0.5 shadow-2xs">
+                        {renderFileTypeIcon(att.fileType)}
                       </div>
-                      <div className="space-y-0.5">
-                        <p className="text-xs font-bold text-slate-800 font-sans line-clamp-1">{att.fileName}</p>
-                        <p className="text-[10px] text-slate-400 font-sans flex items-center gap-1.5">
+                      <div className="space-y-0.5 min-w-0">
+                        <p className="text-xs font-bold text-slate-800 font-sans truncate">{att.fileName}</p>
+                        <p className="text-[10px] text-slate-400 font-sans flex items-center gap-1.5 flex-wrap">
                           <span className="font-semibold text-blue-600">Loại: {att.fileType}</span>
                           <span>•</span>
                           <span>V{att.version}</span>
                           <span>•</span>
                           <span>{att.fileSize}</span>
                         </p>
-                        <p className="text-[9px] text-slate-400 font-sans italic">
-                          Tải lên bởi: {att.uploadedBy.split(' (')[0]} vào {new Date(att.uploadedAt).toLocaleDateString('vi-VN')}
+                        <p className="text-[9px] text-slate-400 font-sans italic truncate">
+                          Tải lên bởi: {att.uploadedBy.split(' (')[0]}
                         </p>
                       </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      {att.fileUrl && att.fileUrl !== '#' && (
+                        <a
+                          href={att.fileUrl}
+                          download={att.fileName}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Tải về file"
+                          className="p-1.5 bg-white border border-slate-200 text-blue-600 hover:bg-blue-50 rounded-lg text-xs font-sans transition-all"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </a>
+                      )}
+                      {onDeleteAttachment && (
+                        <button
+                          onClick={() => onDeleteAttachment(att.id)}
+                          title="Xóa tài liệu"
+                          className="p-1.5 bg-white border border-slate-200 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-sans transition-all cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ));
@@ -572,6 +821,182 @@ export default function StyleDetail({
         </div>
 
       </div>
+
+      {/* Edit Style Modal */}
+      {showEditStyleModal && (
+        <div className="fixed inset-0 bg-slate-900/65 flex items-center justify-center p-4 z-50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-5 border border-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-sans font-bold text-slate-900 text-base flex items-center gap-2">
+                <Pencil className="w-4 h-4 text-blue-600" />
+                Chỉnh sửa thông tin Mã hàng ({style.styleCode})
+              </h3>
+              <button
+                onClick={() => setShowEditStyleModal(false)}
+                className="text-slate-400 hover:text-slate-600 font-sans font-bold p-1 rounded-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveStyleEdit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 font-sans">Mã hàng (Style Code) *</label>
+                <input
+                  type="text"
+                  required
+                  value={editStyleCode}
+                  onChange={e => setEditStyleCode(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-800 font-sans focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 font-sans">Khách hàng (Brand) *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editCustomer}
+                    onChange={e => setEditCustomer(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-800 font-sans focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 font-sans">Mùa vụ (Season)</label>
+                  <input
+                    type="text"
+                    value={editSeason}
+                    onChange={e => setEditSeason(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-800 font-sans focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 font-sans">Buyer đại diện</label>
+                  <input
+                    type="text"
+                    value={editBuyer}
+                    onChange={e => setEditBuyer(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-800 font-sans focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 font-sans">Trạng thái mã hàng</label>
+                  <select
+                    value={editStatus}
+                    onChange={e => setEditStatus(e.target.value as Style['status'])}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-800 font-sans focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Active">Active (May mẫu)</option>
+                    <option value="Completed">Completed (Hoàn tất)</option>
+                    <option value="OnHold">OnHold (Tạm hoãn)</option>
+                    <option value="Cancelled">Cancelled (Đã hủy)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 font-sans">Nhà máy sản xuất (Factory)</label>
+                <input
+                  type="text"
+                  value={editFactory}
+                  onChange={e => setEditFactory(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-800 font-sans focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-800 font-sans flex items-center gap-1.5">
+                  <ExternalLink className="w-3 h-3 text-emerald-600" />
+                  Đường dẫn Google Drive (Link Drive)
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://drive.google.com/drive/folders/..."
+                  value={editDriveUrl}
+                  onChange={e => setEditDriveUrl(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-800 font-sans focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-[10px] text-slate-400 font-sans">
+                  Khách hàng bấm vào nút "Google Drive" sẽ chuyển đến link này để xem/tải tài liệu, hình ảnh.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 font-sans flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                  Ngày khởi tạo đơn hàng (Created Date)
+                </label>
+                <input
+                  type="date"
+                  value={editCreatedAt}
+                  onChange={e => setEditCreatedAt(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-800 font-sans focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowEditStyleModal(false)}
+                  className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 font-sans hover:bg-slate-50"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-blue-600 text-white rounded-xl text-xs font-semibold font-sans hover:bg-blue-700 transition-all shadow-sm"
+                >
+                  Lưu thay đổi
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Style Confirmation Modal */}
+      {showDeleteStyleConfirm && (
+        <div className="fixed inset-0 bg-slate-900/65 flex items-center justify-center p-4 z-50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-rose-100">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-sans font-bold text-slate-900 text-base">Xác nhận xóa Mã hàng</h3>
+                <p className="text-xs text-slate-500 font-sans">Hành động này không thể hoàn tác!</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 font-sans leading-relaxed">
+              Bạn có chắc chắn muốn xóa mã hàng <strong className="text-slate-900 font-bold">{style.styleCode}</strong> ({style.customer}) cùng toàn bộ dữ liệu giai đoạn và file đính kèm?
+            </p>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteStyleConfirm(false)}
+                className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 font-sans hover:bg-slate-50"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteStyle}
+                className="px-5 py-2 bg-rose-600 text-white rounded-xl text-xs font-semibold font-sans hover:bg-rose-700 transition-all shadow-sm"
+              >
+                Xóa vĩnh viễn
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

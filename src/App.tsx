@@ -3,7 +3,7 @@ import { Style, Stage, User, Attachment, FileType, ActivityLog, Notification, St
 import { DEPARTMENTS, USERS, INITIAL_STYLES, INITIAL_ATTACHMENTS, INITIAL_LOGS, INITIAL_NOTIFICATIONS } from './data/initialData';
 
 // Firebase imports
-import { collection, onSnapshot, doc, setDoc, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, getDocs, deleteDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from './firebase';
 
 // Modular Screen imports
@@ -449,8 +449,8 @@ export default function App() {
     }
   };
 
-  // 4. File uploads with auto incrementing versions
-  const handleAddAttachment = async (stageId: string, fileType: FileType, fileName: string, fileSize: string) => {
+  // 4. File uploads with auto incrementing versions & optional fileUrl
+  const handleAddAttachment = async (stageId: string, fileType: FileType, fileName: string, fileSize: string, fileUrl?: string) => {
     // Find if a file with same type already exists for this stage to bump version
     const existingSameType = attachments.filter(a => a.stageId === stageId && a.fileType === fileType);
     const nextVersion = existingSameType.length + 1;
@@ -461,7 +461,7 @@ export default function App() {
       stageId,
       fileType,
       fileName: nextVersion > 1 ? `${fileName.split('.')[0]}_V${nextVersion}.${fileName.split('.')[1] || 'pdf'}` : fileName,
-      fileUrl: '#',
+      fileUrl: fileUrl || '#',
       fileSize,
       version: nextVersion,
       uploadedBy: `${currentUser.name} (${currentUser.role})`,
@@ -469,7 +469,7 @@ export default function App() {
     };
 
     // Find style info for logging
-    const targetStyle = styles.find(style => style.stages.some(st => st.id === stageId));
+    const targetStyle = styles.find(style => style.stages.some(st => st.id === stageId)) || styles.find(style => style.id === stageId);
     const newLogId = `log-${Date.now()}`;
     const newLog: ActivityLog = {
       id: newLogId,
@@ -477,7 +477,7 @@ export default function App() {
       styleCode: targetStyle?.styleCode,
       entityType: 'Attachment',
       entityId: newAttachmentId,
-      action: `Tải lên tài liệu kỹ thuật loại "${fileType}" (phiên bản V${nextVersion})`,
+      action: `Tải lên tài liệu kỹ thuật loại "${fileType}" (${newAttachment.fileName})`,
       changedBy: currentUser.id,
       changedByName: currentUser.name,
       changedByRole: currentUser.role,
@@ -501,29 +501,59 @@ export default function App() {
     }
   };
 
-  // 5. Update parent Style status
-  const handleUpdateStyleStatus = async (styleId: string, status: StyleStatus) => {
+  // Delete attachment
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    const attToDelete = attachments.find(a => a.id === attachmentId);
+    if (!attToDelete) return;
+
+    setAttachments(prev => prev.filter(a => a.id !== attachmentId));
+
+    const newLogId = `log-${Date.now()}`;
+    const newLog: ActivityLog = {
+      id: newLogId,
+      entityType: 'Attachment',
+      entityId: attachmentId,
+      action: `Xóa tài liệu kỹ thuật "${attToDelete.fileName}"`,
+      changedBy: currentUser.id,
+      changedByName: currentUser.name,
+      changedByRole: currentUser.role,
+      changedAt: new Date().toISOString(),
+      oldValue: attToDelete.fileName
+    };
+    setLogs(prev => [newLog, ...prev]);
+
+    if (!isFallbackLocalStorage) {
+      try {
+        await deleteDoc(doc(db, 'attachments', attachmentId));
+        await setDoc(doc(db, 'logs', newLogId), newLog);
+      } catch (error: any) {
+        console.warn("Firestore delete failed", error);
+        setIsFallbackLocalStorage(true);
+      }
+    }
+  };
+
+  // 5. Update full Style information (Edit Style)
+  const handleUpdateStyle = async (styleId: string, updatedFields: Partial<Style>) => {
     const targetStyle = styles.find(style => style.id === styleId);
     if (!targetStyle) return;
 
-    const updatedStyle = { ...targetStyle, status };
+    const updatedStyle: Style = { ...targetStyle, ...updatedFields };
 
     const newLogId = `log-${Date.now()}`;
     const newLog: ActivityLog = {
       id: newLogId,
       styleId,
-      styleCode: targetStyle.styleCode,
+      styleCode: updatedStyle.styleCode,
       entityType: 'Style',
       entityId: styleId,
-      action: `Cập nhật Trạng thái Mã hàng thành "${status}"`,
+      action: `Cập nhật thông tin mã hàng (${updatedStyle.styleCode})`,
       changedBy: currentUser.id,
       changedByName: currentUser.name,
       changedByRole: currentUser.role,
       changedAt: new Date().toISOString(),
-      newValue: status,
     };
 
-    // Optimistically update
     setStyles(styles.map(s => s.id === styleId ? updatedStyle : s));
     setLogs(prev => [newLog, ...prev]);
 
@@ -537,6 +567,54 @@ export default function App() {
         setFirebaseError(error?.message || "Missing or insufficient permissions.");
       }
     }
+  };
+
+  // Delete full Style
+  const handleDeleteStyle = async (styleId: string) => {
+    const targetStyle = styles.find(style => style.id === styleId);
+    if (!targetStyle) return;
+
+    // Remove style and related attachments
+    const styleStageIds = new Set(targetStyle.stages.map(st => st.id));
+    styleStageIds.add(styleId);
+
+    setStyles(prev => prev.filter(s => s.id !== styleId));
+    setAttachments(prev => prev.filter(a => !styleStageIds.has(a.stageId)));
+
+    if (selectedStyleId === styleId) {
+      setSelectedStyleId(null);
+    }
+
+    const newLogId = `log-${Date.now()}`;
+    const newLog: ActivityLog = {
+      id: newLogId,
+      styleId,
+      styleCode: targetStyle.styleCode,
+      entityType: 'Style',
+      entityId: styleId,
+      action: `Xóa mã hàng: ${targetStyle.styleCode} (${targetStyle.customer})`,
+      changedBy: currentUser.id,
+      changedByName: currentUser.name,
+      changedByRole: currentUser.role,
+      changedAt: new Date().toISOString(),
+      oldValue: targetStyle.styleCode,
+    };
+    setLogs(prev => [newLog, ...prev]);
+
+    if (!isFallbackLocalStorage) {
+      try {
+        await deleteDoc(doc(db, 'styles', styleId));
+        await setDoc(doc(db, 'logs', newLogId), newLog);
+      } catch (error: any) {
+        console.warn("Firestore delete failed", error);
+        setIsFallbackLocalStorage(true);
+      }
+    }
+  };
+
+  // 6. Update parent Style status
+  const handleUpdateStyleStatus = async (styleId: string, status: StyleStatus) => {
+    handleUpdateStyle(styleId, { status });
   };
 
   // 6. Read notifications
@@ -934,7 +1012,10 @@ export default function App() {
                       onBack={() => setSelectedStyleId(null)}
                       onUpdateStage={handleUpdateStage}
                       onAddAttachment={handleAddAttachment}
+                      onDeleteAttachment={handleDeleteAttachment}
                       onUpdateStyleStatus={handleUpdateStyleStatus}
+                      onUpdateStyle={handleUpdateStyle}
+                      onDeleteStyle={handleDeleteStyle}
                       attachments={attachments}
                       logs={logs}
                     />
@@ -945,8 +1026,12 @@ export default function App() {
               return (
                 <StyleList
                   styles={styles}
+                  attachments={attachments}
                   onSelectStyle={setSelectedStyleId}
                   onAddStyle={handleAddStyle}
+                  onUpdateStyle={handleUpdateStyle}
+                  onDeleteStyle={handleDeleteStyle}
+                  onAddAttachment={handleAddAttachment}
                 />
               );
             }
