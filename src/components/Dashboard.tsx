@@ -5,11 +5,12 @@ import { AlertCircle, Calendar, CheckCircle2, Clock, Layers, TrendingUp, Users }
 
 interface DashboardProps {
   styles: Style[];
+  users?: User[];
   onSelectStyle: (styleId: string) => void;
   onNavigate: (tab: string) => void;
 }
 
-export default function Dashboard({ styles, onSelectStyle, onNavigate }: DashboardProps) {
+export default function Dashboard({ styles, users = USERS, onSelectStyle, onNavigate }: DashboardProps) {
   const currentDate = new Date('2026-07-01');
 
   // Calculated Stats
@@ -65,7 +66,7 @@ export default function Dashboard({ styles, onSelectStyle, onNavigate }: Dashboa
     : 100;
 
   // Workloads per user
-  const userWorkloads = USERS.map(user => {
+  const userWorkloads = users.map(user => {
     const assignedActive = allActiveStages.filter(item => item.stage.assigneeId === user.id).length;
     const completed = styles.reduce((acc, s) => {
       return acc + s.stages.filter(st => st.assigneeId === user.id && st.status === 'Completed').length;
@@ -176,7 +177,7 @@ export default function Dashboard({ styles, onSelectStyle, onNavigate }: Dashboa
                   {overdueStages.map(({ stage, style }) => {
                     const deadline = new Date(stage.deadline);
                     const diffDays = Math.ceil((currentDate.getTime() - deadline.getTime()) / (1000 * 60 * 60 * 24));
-                    const assignee = USERS.find(u => u.id === stage.assigneeId);
+                    const assignee = users.find(u => u.id === stage.assigneeId);
 
                     return (
                       <div
@@ -226,7 +227,7 @@ export default function Dashboard({ styles, onSelectStyle, onNavigate }: Dashboa
                   {upcomingStages.map(({ stage, style }) => {
                     const deadline = new Date(stage.deadline);
                     const diffDays = Math.ceil((deadline.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
-                    const assignee = USERS.find(u => u.id === stage.assigneeId);
+                    const assignee = users.find(u => u.id === stage.assigneeId);
 
                     return (
                       <div

@@ -1105,6 +1105,7 @@ export default function App() {
               return (
                 <Dashboard
                   styles={styles}
+                  users={users}
                   onSelectStyle={handleSelectStyleFromWidget}
                   onNavigate={setActiveTab}
                 />

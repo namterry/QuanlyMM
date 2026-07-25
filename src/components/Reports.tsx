@@ -82,10 +82,12 @@ export default function Reports({ styles, users = USERS }: ReportsProps) {
       // If Excel, let's trigger a real CSV download of style data
       if (format === 'Excel') {
         let csvContent = 'data:text/csv;charset=utf-8,';
-        csvContent += 'Ma Hang (Style),Khach Hang,Mua Vu,Nguoi Mua (Buyer),Nha May,Trang Thai,Giai Doan,Ngay Yeu Cau,Deadline,Ngay Hoan Thanh,Trang Thai Giai Doan\n';
+        csvContent += 'Ma Hang (Style),Khach Hang,Mua Vu,Nguoi Mua (Buyer),Nha May,Trang Thai,Giai Doan,Nguoi Phu Trach,Ngay Yeu Cau,Deadline,Ngay Hoan Thanh,Trang Thai Giai Doan\n';
         
         styles.forEach(style => {
           style.stages.forEach(st => {
+            const assignee = users.find(u => u.id === st.assigneeId);
+            const assigneeName = assignee ? assignee.name.split(' (')[0] : 'Chưa phân công';
             const row = [
               style.styleCode,
               style.customer,
@@ -94,6 +96,7 @@ export default function Reports({ styles, users = USERS }: ReportsProps) {
               style.factory,
               style.status,
               st.stageType,
+              assigneeName,
               st.requestDate,
               st.deadline,
               st.actualCompletionDate || '',

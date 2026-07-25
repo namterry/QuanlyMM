@@ -88,7 +88,7 @@ export default function StyleDetail({
       return { allowed: true };
     }
 
-    const assignee = USERS.find(u => u.id === stage.assigneeId);
+    const assignee = users.find(u => u.id === stage.assigneeId);
     if (assignee && assignee.departmentId === currentUser.departmentId) {
       return { allowed: true };
     }
