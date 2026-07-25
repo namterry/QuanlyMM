@@ -2,6 +2,7 @@ import React from 'react';
 import { Role, User } from '../types';
 import { USERS } from '../data/initialData';
 import { Shield, User as UserIcon, CheckCircle, Settings, UserPlus } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface RoleSwitcherProps {
   currentRole: Role;
@@ -12,6 +13,7 @@ interface RoleSwitcherProps {
 }
 
 export default function RoleSwitcher({ currentRole, currentUser, users = USERS, onUserChange, onOpenPersonnelManager }: RoleSwitcherProps) {
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = React.useState(false);
 
   return (
@@ -22,7 +24,7 @@ export default function RoleSwitcher({ currentRole, currentUser, users = USERS, 
         className="flex items-center gap-2 bg-slate-900 text-white px-4 py-3 rounded-full shadow-2xl hover:bg-slate-800 transition-all border border-slate-700 font-sans text-sm font-medium cursor-pointer"
       >
         <Shield className="w-4 h-4 text-emerald-400 animate-pulse" />
-        <span>Vai trò: <strong className="text-emerald-400">{currentRole}</strong></span>
+        <span>{t.roleLabel}: <strong className="text-emerald-400">{currentRole}</strong></span>
       </button>
 
       {isOpen && (
@@ -33,7 +35,7 @@ export default function RoleSwitcher({ currentRole, currentUser, users = USERS, 
           <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-3">
             <h3 className="font-sans font-semibold text-slate-800 text-sm flex items-center gap-2">
               <UserIcon className="w-4 h-4 text-slate-500" />
-              Giả lập Nhân sự (RBAC)
+              {t.roleSimulator}
             </h3>
             {onOpenPersonnelManager && (
               <button
@@ -41,17 +43,17 @@ export default function RoleSwitcher({ currentRole, currentUser, users = USERS, 
                   setIsOpen(false);
                   onOpenPersonnelManager();
                 }}
-                title="Quản lý & Chỉnh sửa danh sách Nhân sự"
+                title={t.editStaff}
                 className="text-[11px] text-blue-600 hover:text-blue-800 font-bold font-sans flex items-center gap-1 hover:underline cursor-pointer"
               >
                 <Settings className="w-3.5 h-3.5" />
-                <span>Sửa nhân sự</span>
+                <span>{t.editStaff}</span>
               </button>
             )}
           </div>
 
           <p className="text-xs text-slate-500 mb-3 font-sans leading-relaxed">
-            Chọn nhân sự dưới đây để đóng vai tương tác với các Stage:
+            {t.roleDescription}
           </p>
 
           <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
@@ -81,11 +83,11 @@ export default function RoleSwitcher({ currentRole, currentUser, users = USERS, 
                     <div className="min-w-0">
                       <h4 className="text-xs font-semibold text-slate-800 truncate">{user.name}</h4>
                       <p className="text-[10px] text-slate-500 font-mono uppercase tracking-wider truncate">
-                        {user.role} ({user.id === 'user-admin' ? 'All Access' : 'Dept Limit'})
+                        {user.role} ({user.id === 'user-admin' ? t.allAccess : t.deptLimit})
                       </p>
                     </div>
                   </div>
-                  {isActive && <CheckCircle className="w-4 h-4 text-blue-600 shrink-0" />}
+                  {isActive && <CheckCircle className="w-4 h-4 text-blue-600 shrink-0 ml-1" />}
                 </button>
               );
             })}
@@ -100,13 +102,13 @@ export default function RoleSwitcher({ currentRole, currentUser, users = USERS, 
               className="w-full mt-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 font-sans font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer"
             >
               <UserPlus className="w-3.5 h-3.5" />
-              <span>Thêm / Sửa Tên & Vị trí Nhân sự</span>
+              <span>{t.editStaff}</span>
             </button>
           )}
 
           <div className="mt-2.5 pt-2 border-t border-slate-100 text-[11px] text-slate-400 font-sans">
-            * <strong>Admin / Merchandising</strong>: Toàn quyền.
-            <br />* <strong>Bộ phận khác</strong>: Chỉ sửa Stage được phân công.
+            * <strong>Admin / Merchandising</strong>: {t.allAccess}.
+            <br />* <strong>Others</strong>: {t.deptLimit}.
           </div>
         </div>
       )}

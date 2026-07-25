@@ -16,11 +16,15 @@ import NotificationsCenter from './components/NotificationsCenter';
 import RoleSwitcher from './components/RoleSwitcher';
 import GarmentAI from './components/GarmentAI';
 import PersonnelManagerModal from './components/PersonnelManagerModal';
+import LanguageSelector from './components/LanguageSelector';
+import { useLanguage } from './i18n/LanguageContext';
 
 // Icons
 import { Layers, Kanban, Calendar, TrendingUp, History, Shield, Menu, X, Bell, Plus, Search, Sparkles } from 'lucide-react';
 
 export default function App() {
+  const { t } = useLanguage();
+
   // Navigation
   const [activeTab, setActiveTab] = React.useState<string>('dashboard');
   const [selectedStyleId, setSelectedStyleId] = React.useState<string | null>(null);
@@ -737,7 +741,7 @@ export default function App() {
             }`}
           >
             <TrendingUp className="w-4 h-4 shrink-0 text-slate-400 group-hover:text-slate-200" />
-            <span>Tổng Quan (Dashboard)</span>
+            <span>{t.tabDashboard}</span>
           </button>
 
           <button
@@ -750,7 +754,7 @@ export default function App() {
             }`}
           >
             <Layers className="w-4 h-4 shrink-0 text-slate-400" />
-            <span>Mã hàng & Workflow</span>
+            <span>{t.tabStyles}</span>
           </button>
 
           <div className="text-[9px] uppercase font-bold text-slate-500 px-3 py-1.5 tracking-wider font-sans pt-4">LOGISTICS</div>
@@ -764,7 +768,7 @@ export default function App() {
             }`}
           >
             <Calendar className="w-4 h-4 shrink-0 text-slate-400" />
-            <span>Kế hoạch mẫu (Planner)</span>
+            <span>{t.tabCalendar}</span>
           </button>
 
           <button
@@ -777,7 +781,7 @@ export default function App() {
             }`}
           >
             <History className="w-4 h-4 shrink-0 text-slate-400" />
-            <span>Báo cáo & KPI</span>
+            <span>{t.tabReports}</span>
           </button>
 
           <div className="text-[9px] uppercase font-bold text-slate-500 px-3 py-1.5 tracking-wider font-sans pt-4">INTELLIGENCE</div>
@@ -791,7 +795,7 @@ export default function App() {
             }`}
           >
             <Sparkles className="w-4 h-4 shrink-0 text-slate-400" />
-            <span>Trợ lý AI (GarmentAI)</span>
+            <span>{t.tabAi}</span>
           </button>
         </nav>
 
@@ -917,7 +921,7 @@ export default function App() {
             <div className="relative w-full max-w-xs ml-2 md:ml-0">
               <input
                 type="text"
-                placeholder="Tìm nhanh mã hàng..."
+                placeholder={t.searchPlaceholder}
                 value={headerSearch}
                 onChange={(e) => setHeaderSearch(e.target.value)}
                 className="w-full pl-8 pr-4 py-1.5 text-xs bg-slate-100 border-none rounded-md focus:ring-1 focus:ring-blue-500 font-sans focus:outline-none placeholder-slate-400"
@@ -927,7 +931,7 @@ export default function App() {
               {headerSearch && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 overflow-y-auto z-50 p-1">
                   {styles.filter(s => s.styleCode.toLowerCase().includes(headerSearch.toLowerCase())).length === 0 ? (
-                    <div className="text-center py-3 text-xs text-slate-400 font-sans">Không tìm thấy mã hàng</div>
+                    <div className="text-center py-3 text-xs text-slate-400 font-sans">No matching styles found</div>
                   ) : (
                     styles.filter(s => s.styleCode.toLowerCase().includes(headerSearch.toLowerCase())).map(style => (
                       <button
@@ -955,7 +959,12 @@ export default function App() {
           </div>
 
           {/* Right quick actions */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            {/* Language Selector Component */}
+            <LanguageSelector />
+
+            <div className="w-px h-5 bg-slate-200 hidden sm:block"></div>
+
             {/* Quick add style shortcut if in Styles list view */}
             {activeTab === 'styles' && !selectedStyleId && (
               <button

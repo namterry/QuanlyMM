@@ -2,6 +2,7 @@ import React from 'react';
 import { User, Role, Department } from '../types';
 import { DEPARTMENTS } from '../data/initialData';
 import { UserCheck, Shield, Plus, Pencil, Trash2, Camera, Upload, AlertTriangle, RefreshCw, Check, X, Image as ImageIcon } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface PersonnelManagerModalProps {
   users: User[];
@@ -45,6 +46,7 @@ export default function PersonnelManagerModal({
   onDeleteUser,
   onResetUsers,
 }: PersonnelManagerModalProps) {
+  const { t } = useLanguage();
   const [editingUser, setEditingUser] = React.useState<User | null>(null);
   const [deletingUser, setDeletingUser] = React.useState<User | null>(null);
   const [showAddForm, setShowAddForm] = React.useState(false);
@@ -136,9 +138,9 @@ export default function PersonnelManagerModal({
               <UserCheck className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="font-sans font-bold text-slate-900 text-lg">Quản lý Nhân sự & Vị trí</h2>
+              <h2 className="font-sans font-bold text-slate-900 text-lg">{t.personnelManagerTitle}</h2>
               <p className="text-xs text-slate-500 font-sans">
-                Chỉnh sửa tên, chức danh/vị trí công tác và ảnh đại diện của từng nhân viên
+                {t.personnelManagerSubtitle}
               </p>
             </div>
           </div>
@@ -155,17 +157,17 @@ export default function PersonnelManagerModal({
           {/* Action Toolbar */}
           <div className="flex items-center justify-between gap-3 bg-blue-50/50 p-3.5 rounded-xl border border-blue-100">
             <div className="text-xs text-slate-700 font-sans font-medium">
-              Tổng số nhân sự hiện tại: <strong className="text-blue-700">{users.length} nhân viên</strong>
+              {t.totalPersonnel}: <strong className="text-blue-700">{users.length}</strong>
             </div>
             <div className="flex items-center gap-2">
               {onResetUsers && (
                 <button
                   onClick={onResetUsers}
-                  title="Khôi phục danh sách nhân viên ban đầu"
+                  title={t.resetDefault}
                   className="px-3 py-1.5 border border-slate-200 text-slate-600 hover:bg-white text-xs font-semibold rounded-lg font-sans flex items-center gap-1.5 transition-all cursor-pointer"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Mặc định</span>
+                  <span>{t.resetDefault}</span>
                 </button>
               )}
               <button
@@ -173,7 +175,7 @@ export default function PersonnelManagerModal({
                 className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg font-sans flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
-                <span>+ Thêm Nhân sự mới</span>
+                <span>+ {t.addNewPersonnel}</span>
               </button>
             </div>
           </div>
