@@ -4,7 +4,7 @@ import { USERS } from '../data/initialData';
 import {
   ArrowLeft, Calendar, UserCheck, CheckCircle2, Clock, AlertTriangle, FileText, Upload,
   Plus, History, ShieldAlert, Sparkles, AlertCircle, RefreshCw, Pencil, Trash2, Download,
-  FileSpreadsheet, Image, ExternalLink, FileCode
+  FileSpreadsheet, Image, ExternalLink, FileCode, Scissors, Shirt, Package, Layers
 } from 'lucide-react';
 
 interface StyleDetailProps {
@@ -57,6 +57,8 @@ export default function StyleDetail({
   const [editBuyer, setEditBuyer] = React.useState(style.buyer);
   const [editFactory, setEditFactory] = React.useState(style.factory);
   const [editDriveUrl, setEditDriveUrl] = React.useState(style.driveUrl || '');
+  const [editPatternQuantity, setEditPatternQuantity] = React.useState<number>(style.patternQuantity ?? 1);
+  const [editSampleQuantity, setEditSampleQuantity] = React.useState<number>(style.sampleQuantity ?? 1);
   const [editCreatedAt, setEditCreatedAt] = React.useState(style.createdAt ? style.createdAt.slice(0, 10) : '');
   const [editStatus, setEditStatus] = React.useState<Style['status']>(style.status);
 
@@ -71,6 +73,8 @@ export default function StyleDetail({
     setEditBuyer(style.buyer);
     setEditFactory(style.factory);
     setEditDriveUrl(style.driveUrl || '');
+    setEditPatternQuantity(style.patternQuantity ?? 1);
+    setEditSampleQuantity(style.sampleQuantity ?? 1);
     setEditCreatedAt(style.createdAt ? style.createdAt.slice(0, 10) : '');
     setEditStatus(style.status);
   }, [style]);
@@ -197,6 +201,8 @@ export default function StyleDetail({
       buyer: editBuyer,
       factory: editFactory,
       driveUrl: editDriveUrl,
+      patternQuantity: editPatternQuantity,
+      sampleQuantity: editSampleQuantity,
       createdAt: editCreatedAt ? new Date(editCreatedAt).toISOString() : style.createdAt,
       status: editStatus
     });
@@ -287,6 +293,14 @@ export default function StyleDetail({
               <h1 className="font-sans font-bold text-slate-900 text-xl">{style.styleCode}</h1>
               <span className="text-slate-400 font-sans text-sm">•</span>
               <span className="font-sans text-slate-500 text-sm font-medium">{style.customer} ({style.season})</span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs font-bold font-mono">
+                <Scissors className="w-3.5 h-3.5 text-blue-600" />
+                <span>{style.patternQuantity ?? 1} Bộ rập</span>
+              </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold font-mono">
+                <Shirt className="w-3.5 h-3.5 text-emerald-600" />
+                <span>{style.sampleQuantity ?? 1} Chiếc mẫu</span>
+              </span>
             </div>
             <p className="text-xs text-slate-400 font-sans mt-0.5">
               Cơ cấu nhà máy: <strong className="text-slate-600">{style.factory}</strong> | Buyer: <strong className="text-slate-600">{style.buyer}</strong>
@@ -466,6 +480,257 @@ export default function StyleDetail({
                     </button>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Thanh Theo Dõi & Giao Việc 3 Bước (Rập | Nguyên Phụ Liệu | May Mẫu) */}
+            <div className="bg-slate-50/70 border border-slate-200 rounded-2xl p-4 space-y-4 shadow-sm" id="three-step-tracking-bar">
+              <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
+                <div className="space-y-0.5">
+                  <h3 className="text-xs font-bold text-slate-900 font-sans uppercase tracking-wider flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-blue-600" />
+                    Thanh Theo Dõi & Phân Công Giao Việc (3 Bước)
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-sans">
+                    Phân công người phụ trách và theo dõi tiến độ từng khâu: Làm Rập, Nguyên Phụ Liệu, May Mẫu
+                  </p>
+                </div>
+                {/* Visual Step Counter */}
+                <span className="text-[11px] font-mono font-bold bg-white px-2.5 py-1 border border-slate-200 rounded-lg text-slate-700 shrink-0">
+                  {((selectedStage.patternStatus === 'Completed' ? 1 : 0) +
+                    (selectedStage.materialStatus === 'Completed' ? 1 : 0) +
+                    (selectedStage.sewingStatus === 'Completed' ? 1 : 0))}/3 Bước Hoàn Thành
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {/* Step 1: Pattern Maker */}
+                <div className={`p-3 rounded-xl border transition-all space-y-2.5 ${
+                  selectedStage.patternStatus === 'Completed'
+                    ? 'bg-emerald-50/40 border-emerald-200'
+                    : selectedStage.patternStatus === 'InProgress'
+                    ? 'bg-blue-50/40 border-blue-200'
+                    : 'bg-white border-slate-200'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                        <Scissors className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-800 font-sans">1. Thiết kế Rập / CAD</span>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                      selectedStage.patternStatus === 'Completed'
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                        : selectedStage.patternStatus === 'InProgress'
+                        ? 'bg-blue-100 text-blue-800 border-blue-300'
+                        : 'bg-slate-100 text-slate-600 border-slate-200'
+                    }`}>
+                      {selectedStage.patternStatus === 'Completed' ? 'Đã xong Rập' : selectedStage.patternStatus === 'InProgress' ? 'Đang vẽ Rập' : 'Chờ làm Rập'}
+                    </span>
+                  </div>
+
+                  {/* Assignee Selection */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-slate-500 font-sans uppercase">Phụ trách Rập</label>
+                    <select
+                      value={selectedStage.patternAssigneeId || ''}
+                      onChange={e => {
+                        const newPatternAssignee = e.target.value || undefined;
+                        onUpdateStage(selectedStage.id, {
+                          patternAssigneeId: newPatternAssignee,
+                          patternStatus: newPatternAssignee && !selectedStage.patternStatus ? 'InProgress' : selectedStage.patternStatus
+                        });
+                      }}
+                      className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 font-sans"
+                    >
+                      <option value="">-- Chọn bạn làm Rập --</option>
+                      {users.map(u => (
+                        <option key={u.id} value={u.id}>
+                          {u.name} ({u.role})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Quick status toggles */}
+                  <div className="flex items-center gap-1 pt-1">
+                    {(['Pending', 'InProgress', 'Completed'] as StageStatus[]).map(st => (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={() => {
+                          const newStatus = st;
+                          const isAllCompleted = newStatus === 'Completed' && selectedStage.materialStatus === 'Completed' && selectedStage.sewingStatus === 'Completed';
+                          onUpdateStage(selectedStage.id, {
+                            patternStatus: newStatus,
+                            status: isAllCompleted ? 'Completed' : 'InProgress',
+                            progressPercent: isAllCompleted ? 100 : Math.max(selectedStage.progressPercent, 33)
+                          });
+                        }}
+                        className={`flex-1 py-1 rounded text-[10px] font-bold font-sans transition-all border ${
+                          (selectedStage.patternStatus || 'Pending') === st
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {st === 'Pending' ? 'Chờ' : st === 'InProgress' ? 'Đang làm' : 'Xong'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Step 2: Material / Fabric Prep */}
+                <div className={`p-3 rounded-xl border transition-all space-y-2.5 ${
+                  selectedStage.materialStatus === 'Completed'
+                    ? 'bg-emerald-50/40 border-emerald-200'
+                    : selectedStage.materialStatus === 'InProgress'
+                    ? 'bg-amber-50/40 border-amber-200'
+                    : 'bg-white border-slate-200'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                        <Package className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-800 font-sans">2. Nguyên Phụ Liệu & Vải</span>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                      selectedStage.materialStatus === 'Completed'
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                        : selectedStage.materialStatus === 'InProgress'
+                        ? 'bg-amber-100 text-amber-800 border-amber-300'
+                        : 'bg-slate-100 text-slate-600 border-slate-200'
+                    }`}>
+                      {selectedStage.materialStatus === 'Completed' ? 'Đã đủ NPL' : selectedStage.materialStatus === 'InProgress' ? 'Đang chuẩn bị' : 'Chờ NPL'}
+                    </span>
+                  </div>
+
+                  {/* Assignee Selection */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-slate-500 font-sans uppercase">Phụ trách NPL & Vải</label>
+                    <select
+                      value={selectedStage.materialAssigneeId || ''}
+                      onChange={e => {
+                        const newMatAssignee = e.target.value || undefined;
+                        onUpdateStage(selectedStage.id, {
+                          materialAssigneeId: newMatAssignee,
+                          materialStatus: newMatAssignee && !selectedStage.materialStatus ? 'InProgress' : selectedStage.materialStatus
+                        });
+                      }}
+                      className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500 font-sans"
+                    >
+                      <option value="">-- Chọn bạn chuẩn bị NPL --</option>
+                      {users.map(u => (
+                        <option key={u.id} value={u.id}>
+                          {u.name} ({u.role})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Quick status toggles */}
+                  <div className="flex items-center gap-1 pt-1">
+                    {(['Pending', 'InProgress', 'Completed'] as StageStatus[]).map(st => (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={() => {
+                          const newStatus = st;
+                          const isAllCompleted = selectedStage.patternStatus === 'Completed' && newStatus === 'Completed' && selectedStage.sewingStatus === 'Completed';
+                          onUpdateStage(selectedStage.id, {
+                            materialStatus: newStatus,
+                            status: isAllCompleted ? 'Completed' : 'InProgress',
+                            progressPercent: isAllCompleted ? 100 : Math.max(selectedStage.progressPercent, 66)
+                          });
+                        }}
+                        className={`flex-1 py-1 rounded text-[10px] font-bold font-sans transition-all border ${
+                          (selectedStage.materialStatus || 'Pending') === st
+                            ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {st === 'Pending' ? 'Chờ' : st === 'InProgress' ? 'Đang làm' : 'Đủ NPL'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Step 3: Sewing */}
+                <div className={`p-3 rounded-xl border transition-all space-y-2.5 ${
+                  selectedStage.sewingStatus === 'Completed'
+                    ? 'bg-emerald-50/40 border-emerald-200'
+                    : selectedStage.sewingStatus === 'InProgress'
+                    ? 'bg-purple-50/40 border-purple-200'
+                    : 'bg-white border-slate-200'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-purple-100 text-purple-800 flex items-center justify-center shrink-0">
+                        <Shirt className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-800 font-sans">3. Phụ trách May Mẫu</span>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                      selectedStage.sewingStatus === 'Completed'
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                        : selectedStage.sewingStatus === 'InProgress'
+                        ? 'bg-purple-100 text-purple-800 border-purple-300'
+                        : 'bg-slate-100 text-slate-600 border-slate-200'
+                    }`}>
+                      {selectedStage.sewingStatus === 'Completed' ? 'Đã may xong' : selectedStage.sewingStatus === 'InProgress' ? 'Đang may mẫu' : 'Chờ may'}
+                    </span>
+                  </div>
+
+                  {/* Assignee Selection */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-slate-500 font-sans uppercase">Phụ trách May mẫu</label>
+                    <select
+                      value={selectedStage.sewingAssigneeId || ''}
+                      onChange={e => {
+                        const newSewAssignee = e.target.value || undefined;
+                        onUpdateStage(selectedStage.id, {
+                          sewingAssigneeId: newSewAssignee,
+                          sewingStatus: newSewAssignee && !selectedStage.sewingStatus ? 'InProgress' : selectedStage.sewingStatus
+                        });
+                      }}
+                      className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-purple-500 font-sans"
+                    >
+                      <option value="">-- Chọn bạn May mẫu --</option>
+                      {users.map(u => (
+                        <option key={u.id} value={u.id}>
+                          {u.name} ({u.role})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Quick status toggles */}
+                  <div className="flex items-center gap-1 pt-1">
+                    {(['Pending', 'InProgress', 'Completed'] as StageStatus[]).map(st => (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={() => {
+                          const newStatus = st;
+                          const isAllCompleted = selectedStage.patternStatus === 'Completed' && selectedStage.materialStatus === 'Completed' && newStatus === 'Completed';
+                          onUpdateStage(selectedStage.id, {
+                            sewingStatus: newStatus,
+                            status: isAllCompleted ? 'Completed' : 'InProgress',
+                            progressPercent: isAllCompleted ? 100 : Math.max(selectedStage.progressPercent, 80)
+                          });
+                        }}
+                        className={`flex-1 py-1 rounded text-[10px] font-bold font-sans transition-all border ${
+                          (selectedStage.sewingStatus || 'Pending') === st
+                            ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {st === 'Pending' ? 'Chờ' : st === 'InProgress' ? 'Đang may' : 'May xong'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -899,6 +1164,36 @@ export default function StyleDetail({
                     <option value="OnHold">OnHold (Tạm hoãn)</option>
                     <option value="Cancelled">Cancelled (Đã hủy)</option>
                   </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5 bg-blue-50/50 p-2.5 rounded-xl border border-blue-100">
+                  <label className="text-xs font-bold text-blue-900 font-sans flex items-center gap-1">
+                    <Scissors className="w-3.5 h-3.5 text-blue-600" />
+                    Số lượng Rập (Bộ rập)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={editPatternQuantity}
+                    onChange={e => setEditPatternQuantity(parseInt(e.target.value) || 0)}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-800 font-bold focus:ring-2 focus:ring-blue-500 font-sans"
+                  />
+                </div>
+
+                <div className="space-y-1.5 bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-100">
+                  <label className="text-xs font-bold text-emerald-900 font-sans flex items-center gap-1">
+                    <Shirt className="w-3.5 h-3.5 text-emerald-600" />
+                    Số lượng Mẫu (Chiếc may)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={editSampleQuantity}
+                    onChange={e => setEditSampleQuantity(parseInt(e.target.value) || 0)}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-800 font-bold focus:ring-2 focus:ring-emerald-500 font-sans"
+                  />
                 </div>
               </div>
 

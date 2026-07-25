@@ -50,7 +50,18 @@ export interface Stage {
   actualCompletionDate?: string;
   sentDate?: string; // Ngày gửi sample
   productionDate?: string; // Ngày đưa vào sản xuất
-  assigneeId?: string; // User ID
+  assigneeId?: string; // User ID phụ trách chung
+
+  // Thanh theo dõi phân công 3 bước
+  patternAssigneeId?: string; // Phụ trách Rập/CAD
+  patternStatus?: StageStatus; // Trạng thái Rập
+  
+  materialAssigneeId?: string; // Phụ trách NPL & Vải
+  materialStatus?: StageStatus; // Trạng thái Nguyên phụ liệu
+  
+  sewingAssigneeId?: string; // Phụ trách May mẫu
+  sewingStatus?: StageStatus; // Trạng thái May
+
   status: StageStatus;
   note: string;
   progressPercent: number; // 0 - 100
@@ -66,6 +77,8 @@ export interface Style {
   buyer: string;
   factory: string;
   driveUrl?: string; // Đường dẫn Google Drive
+  patternQuantity?: number; // Số lượng rập (bộ)
+  sampleQuantity?: number;  // Số lượng mẫu (chiếc)
   status: StyleStatus;
   createdBy: string;
   createdAt: string;

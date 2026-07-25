@@ -1,7 +1,7 @@
 import React from 'react';
 import { Style, User } from '../types';
 import { USERS } from '../data/initialData';
-import { FileSpreadsheet, FileText, BarChart, Clock, CheckSquare, Award, ArrowUpRight } from 'lucide-react';
+import { FileSpreadsheet, FileText, Clock, Award, Scissors, Shirt, Layers, CheckCircle2 } from 'lucide-react';
 
 interface ReportsProps {
   styles: Style[];
@@ -12,7 +12,6 @@ export default function Reports({ styles, users = USERS }: ReportsProps) {
   const [exportState, setExportState] = React.useState<{ exporting: boolean; format: 'Excel' | 'PDF' | null }>({ exporting: false, format: null });
 
   // 1. Calculate Average Lead Times per stage type
-  // Difference between request date and actual completion date
   const stageLeadTimes: { [key: string]: { totalDays: number; count: number } } = {};
   
   styles.forEach(style => {
@@ -38,23 +37,41 @@ export default function Reports({ styles, users = USERS }: ReportsProps) {
     completedCount: data.count,
   }));
 
-  // 2. Employee Productivity Summary
+  // 2. Employee Productivity Summary & Workload Breakdown (Rập & Mẫu)
   const userProductivity = users.map(user => {
     let completedInTime = 0;
     let completedLate = 0;
     let totalCompleted = 0;
+    let patternAssigned = 0;
+    let patternCompleted = 0;
+    let sampleAssigned = 0;
+    let sampleCompleted = 0;
 
     styles.forEach(style => {
       style.stages.forEach(stage => {
-        if (stage.assigneeId === user.id && stage.status === 'Completed') {
-          totalCompleted++;
-          if (stage.actualCompletionDate) {
-            const actual = new Date(stage.actualCompletionDate);
-            const deadline = new Date(stage.deadline);
-            if (actual <= deadline) {
-              completedInTime++;
-            } else {
-              completedLate++;
+        if (stage.assigneeId === user.id) {
+          const isPattern = user.role === 'Pattern' || user.role === 'CAD' || stage.stageType === 'Proto Sample' || stage.stageType === 'Fit Sample';
+          const isSample = user.role === 'Sample Room' || stage.stageType === 'PP Sample' || stage.stageType === 'Size Set Sample' || stage.stageType === 'Sales Sample' || stage.stageType === 'TOP Sample';
+
+          if (isPattern) {
+            patternAssigned++;
+            if (stage.status === 'Completed') patternCompleted++;
+          }
+          if (isSample) {
+            sampleAssigned++;
+            if (stage.status === 'Completed') sampleCompleted++;
+          }
+
+          if (stage.status === 'Completed') {
+            totalCompleted++;
+            if (stage.actualCompletionDate) {
+              const actual = new Date(stage.actualCompletionDate);
+              const deadline = new Date(stage.deadline);
+              if (actual <= deadline) {
+                completedInTime++;
+              } else {
+                completedLate++;
+              }
             }
           }
         }
@@ -69,8 +86,21 @@ export default function Reports({ styles, users = USERS }: ReportsProps) {
       completedInTime,
       completedLate,
       otdRate,
+      patternAssigned,
+      patternCompleted,
+      sampleAssigned,
+      sampleCompleted,
     };
   });
+
+  // Filter specific groups for Pattern Makers & Sample Sewers
+  const patternStaff = userProductivity.filter(p => p.user.role === 'Pattern' || p.user.role === 'CAD' || p.patternAssigned > 0);
+  const sampleStaff = userProductivity.filter(p => p.user.role === 'Sample Room' || p.sampleAssigned > 0);
+
+  const totalPatternAssignedSum = patternStaff.reduce((acc, p) => acc + p.patternAssigned, 0);
+  const totalPatternCompletedSum = patternStaff.reduce((acc, p) => acc + p.patternCompleted, 0);
+  const totalSampleAssignedSum = sampleStaff.reduce((acc, p) => acc + p.sampleAssigned, 0);
+  const totalSampleCompletedSum = sampleStaff.reduce((acc, p) => acc + p.sampleCompleted, 0);
 
   // Export simulator
   const triggerExport = (format: 'Excel' | 'PDF') => {
@@ -114,7 +144,6 @@ export default function Reports({ styles, users = USERS }: ReportsProps) {
         link.click();
         document.body.removeChild(link);
       } else {
-        // If PDF, trigger standard browser printing layout
         window.print();
       }
     }, 1500);
@@ -127,7 +156,7 @@ export default function Reports({ styles, users = USERS }: ReportsProps) {
         <div>
           <h1 className="font-sans font-bold text-slate-900 text-2xl">Báo cáo & Thống kê May mẫu (Insights)</h1>
           <p className="text-xs text-slate-500 font-sans mt-0.5">
-            Phân tích năng suất lao động, thời gian phát triển và tải xuất dữ liệu Excel/PDF.
+            Phân tích năng suất lao động, theo dõi số lượng rập/mẫu chuyên sâu và xuất dữ liệu Excel/PDF.
           </p>
         </div>
 
@@ -154,7 +183,143 @@ export default function Reports({ styles, users = USERS }: ReportsProps) {
         </div>
       </div>
 
-      {/* Grid: Leadtimes and Productivity */}
+      {/* DEDICATED SECTION: SỐ LƯỢNG RẬP VÀ SỐ LƯỢNG MẤY BÁO CÁO NHÂN SỰ */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-white shadow-md space-y-5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="bg-blue-500/20 text-blue-400 p-1.5 rounded-lg border border-blue-500/30">
+                <Scissors className="w-4 h-4" />
+              </span>
+              <h2 className="font-sans font-bold text-base text-white">Báo cáo Khối Kỹ Thuật Rập & Thợ May Mẫu</h2>
+            </div>
+            <p className="text-xs text-slate-400 font-sans mt-1">
+              Thống kê trực quan số lượng bộ rập (Pattern) và số lượng sản phẩm may mẫu (Sample Garments) theo từng nhân sự đảm nhiệm
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="bg-slate-800 border border-slate-700/60 rounded-xl px-3 py-1.5 text-center">
+              <p className="text-[10px] text-slate-400 uppercase font-sans font-medium">Tổng Rập</p>
+              <p className="text-sm font-bold font-mono text-blue-400">{totalPatternCompletedSum} / {totalPatternAssignedSum} bộ</p>
+            </div>
+            <div className="bg-slate-800 border border-slate-700/60 rounded-xl px-3 py-1.5 text-center">
+              <p className="text-[10px] text-slate-400 uppercase font-sans font-medium">Tổng Mẫu May</p>
+              <p className="text-sm font-bold font-mono text-emerald-400">{totalSampleCompletedSum} / {totalSampleAssignedSum} chiếc</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 2 Cards Grid for Pattern vs Sample Sewers */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* Card 1: Người Làm Rập (Pattern & CAD) */}
+          <div className="bg-slate-800/80 border border-slate-700/80 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-700/60 pb-2.5">
+              <div className="flex items-center gap-2">
+                <Scissors className="w-4 h-4 text-blue-400" />
+                <h3 className="font-sans font-semibold text-sm text-slate-100">Báo cáo Kỹ thuật Rập (Pattern Makers)</h3>
+              </div>
+              <span className="text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 font-mono font-bold px-2 py-0.5 rounded-full">
+                {patternStaff.length} nhân sự
+              </span>
+            </div>
+
+            <div className="space-y-2.5">
+              {patternStaff.length === 0 ? (
+                <p className="text-xs text-slate-400 py-3 text-center">Chưa phân công bộ rập nào.</p>
+              ) : (
+                patternStaff.map(item => {
+                  const inProgress = item.patternAssigned - item.patternCompleted;
+                  const percent = item.patternAssigned > 0 ? Math.round((item.patternCompleted / item.patternAssigned) * 100) : 100;
+                  return (
+                    <div key={item.user.id} className="bg-slate-900/60 border border-slate-700/50 p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <img src={item.user.avatar} alt={item.user.name} className="w-8 h-8 rounded-full border border-slate-700" referrerPolicy="no-referrer" />
+                        <div>
+                          <p className="font-sans font-bold text-xs text-slate-200">{item.user.name.split(' (')[0]}</p>
+                          <span className="text-[10px] text-blue-400 font-mono uppercase tracking-wider">{item.user.role}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="text-right">
+                          <div className="flex items-center gap-1.5 text-xs font-mono">
+                            <span className="text-slate-400">Số Rập:</span>
+                            <span className="font-bold text-blue-400 bg-blue-950/60 border border-blue-800/60 px-2 py-0.5 rounded text-[11px]">
+                              {item.patternAssigned} rập
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 mt-0.5 font-sans">
+                            Đã xong: <span className="text-emerald-400 font-mono font-bold">{item.patternCompleted}</span> | Đang làm: <span className="text-amber-400 font-mono">{inProgress}</span>
+                          </p>
+                        </div>
+                        <div className="w-12 text-center bg-slate-800 rounded px-1.5 py-1 border border-slate-700">
+                          <p className="text-[9px] text-slate-400">Xong</p>
+                          <p className="text-xs font-mono font-extrabold text-emerald-400">{percent}%</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Card 2: Thợ May Mẫu (Sample Sewers) */}
+          <div className="bg-slate-800/80 border border-slate-700/80 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-700/60 pb-2.5">
+              <div className="flex items-center gap-2">
+                <Shirt className="w-4 h-4 text-emerald-400" />
+                <h3 className="font-sans font-semibold text-sm text-slate-100">Báo cáo Thợ may Mẫu (Sample Sewers)</h3>
+              </div>
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono font-bold px-2 py-0.5 rounded-full">
+                {sampleStaff.length} nhân sự
+              </span>
+            </div>
+
+            <div className="space-y-2.5">
+              {sampleStaff.length === 0 ? (
+                <p className="text-xs text-slate-400 py-3 text-center">Chưa phân công may mẫu nào.</p>
+              ) : (
+                sampleStaff.map(item => {
+                  const inProgress = item.sampleAssigned - item.sampleCompleted;
+                  const percent = item.sampleAssigned > 0 ? Math.round((item.sampleCompleted / item.sampleAssigned) * 100) : 100;
+                  return (
+                    <div key={item.user.id} className="bg-slate-900/60 border border-slate-700/50 p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <img src={item.user.avatar} alt={item.user.name} className="w-8 h-8 rounded-full border border-slate-700" referrerPolicy="no-referrer" />
+                        <div>
+                          <p className="font-sans font-bold text-xs text-slate-200">{item.user.name.split(' (')[0]}</p>
+                          <span className="text-[10px] text-emerald-400 font-mono uppercase tracking-wider">{item.user.role}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="text-right">
+                          <div className="flex items-center gap-1.5 text-xs font-mono">
+                            <span className="text-slate-400">Số Mẫu:</span>
+                            <span className="font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded text-[11px]">
+                              {item.sampleAssigned} mẫu
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 mt-0.5 font-sans">
+                            Đã may: <span className="text-emerald-400 font-mono font-bold">{item.sampleCompleted}</span> | Đang may: <span className="text-amber-400 font-mono">{inProgress}</span>
+                          </p>
+                        </div>
+                        <div className="w-12 text-center bg-slate-800 rounded px-1.5 py-1 border border-slate-700">
+                          <p className="text-[9px] text-slate-400">Xong</p>
+                          <p className="text-xs font-mono font-extrabold text-emerald-400">{percent}%</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Grid: Leadtimes and Overall Employee Productivity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Lead times average chart block */}
@@ -196,10 +361,10 @@ export default function Reports({ styles, users = USERS }: ReportsProps) {
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
           <h3 className="font-sans font-semibold text-slate-800 text-sm flex items-center gap-2 border-b border-slate-100 pb-3">
             <Award className="w-4 h-4 text-slate-500" />
-            Bảng Đánh Giá Năng Suất Nhân Sự
+            Bảng Đánh Giá Năng Suất Nhân Sự Toàn Bộ
           </h3>
           <p className="text-xs text-slate-500 font-sans leading-relaxed">
-            Theo dõi tỉ lệ On-Time Delivery (OTD) hoàn thành đúng hạn của các nhân viên được phân rã nhiệm vụ.
+            Theo dõi tỉ lệ On-Time Delivery (OTD), số lượng rập và mẫu may đảm nhận của từng nhân viên.
           </p>
 
           <div className="overflow-x-auto">
@@ -207,7 +372,9 @@ export default function Reports({ styles, users = USERS }: ReportsProps) {
               <thead>
                 <tr className="border-b border-slate-100 text-slate-400">
                   <th className="pb-2 font-sans uppercase font-bold text-[10px]">Nhân sự / Bộ phận</th>
-                  <th className="pb-2 font-sans uppercase font-bold text-[10px] text-center">Hoàn thành</th>
+                  <th className="pb-2 font-sans uppercase font-bold text-[10px] text-center text-blue-600">SL Rập</th>
+                  <th className="pb-2 font-sans uppercase font-bold text-[10px] text-center text-emerald-600">SL Mẫu</th>
+                  <th className="pb-2 font-sans uppercase font-bold text-[10px] text-center">Đã xong</th>
                   <th className="pb-2 font-sans uppercase font-bold text-[10px] text-center text-emerald-600">Đúng hạn</th>
                   <th className="pb-2 font-sans uppercase font-bold text-[10px] text-center text-rose-500">Trễ hạn</th>
                   <th className="pb-2 font-sans uppercase font-bold text-[10px] text-right">Tỉ lệ OTD</th>
@@ -222,6 +389,16 @@ export default function Reports({ styles, users = USERS }: ReportsProps) {
                         <p className="font-sans font-semibold text-slate-800">{item.user.name.split(' (')[0]}</p>
                         <p className="text-[9px] text-slate-400 uppercase font-mono tracking-wider">{item.user.role}</p>
                       </div>
+                    </td>
+                    <td className="py-2.5 text-center font-mono">
+                      <span className="bg-blue-50 text-blue-700 font-bold px-1.5 py-0.5 rounded text-[10px]">
+                        {item.patternAssigned}
+                      </span>
+                    </td>
+                    <td className="py-2.5 text-center font-mono">
+                      <span className="bg-emerald-50 text-emerald-700 font-bold px-1.5 py-0.5 rounded text-[10px]">
+                        {item.sampleAssigned}
+                      </span>
                     </td>
                     <td className="py-2.5 text-center font-mono font-medium text-slate-700">{item.totalCompleted}</td>
                     <td className="py-2.5 text-center font-mono font-bold text-emerald-600">{item.completedInTime}</td>
@@ -293,3 +470,4 @@ export default function Reports({ styles, users = USERS }: ReportsProps) {
     </div>
   );
 }
+

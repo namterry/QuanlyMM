@@ -1,6 +1,6 @@
 import React from 'react';
 import { Style, StyleStatus, StageType, Attachment, FileType } from '../types';
-import { Filter, Search, Plus, Calendar, Building, User, ChevronRight, Sparkles, Pencil, Trash2, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Filter, Search, Plus, Calendar, Building, User, ChevronRight, Sparkles, Pencil, Trash2, AlertTriangle, ExternalLink, Scissors, Shirt, Layers } from 'lucide-react';
 
 interface StyleListProps {
   styles: Style[];
@@ -44,6 +44,8 @@ export default function StyleList({ styles, onSelectStyle, onAddStyle, onUpdateS
   const [editBuyer, setEditBuyer] = React.useState('');
   const [editFactory, setEditFactory] = React.useState('');
   const [editDriveUrl, setEditDriveUrl] = React.useState('');
+  const [editPatternQuantity, setEditPatternQuantity] = React.useState<number>(1);
+  const [editSampleQuantity, setEditSampleQuantity] = React.useState<number>(1);
   const [editCreatedAt, setEditCreatedAt] = React.useState('');
   const [editStatus, setEditStatus] = React.useState<StyleStatus>('Active');
 
@@ -54,6 +56,8 @@ export default function StyleList({ styles, onSelectStyle, onAddStyle, onUpdateS
   const [newBuyer, setNewBuyer] = React.useState('');
   const [newFactory, setNewFactory] = React.useState('');
   const [newDriveUrl, setNewDriveUrl] = React.useState('');
+  const [newPatternQuantity, setNewPatternQuantity] = React.useState<number>(1);
+  const [newSampleQuantity, setNewSampleQuantity] = React.useState<number>(1);
   const [newCreatedAt, setNewCreatedAt] = React.useState('');
   const [customStageName, setCustomStageName] = React.useState('');
   const [selectedStages, setSelectedStages] = React.useState<StageType[]>([
@@ -70,6 +74,8 @@ export default function StyleList({ styles, onSelectStyle, onAddStyle, onUpdateS
     setEditBuyer(style.buyer);
     setEditFactory(style.factory);
     setEditDriveUrl(style.driveUrl || '');
+    setEditPatternQuantity(style.patternQuantity ?? 1);
+    setEditSampleQuantity(style.sampleQuantity ?? 1);
     setEditCreatedAt(style.createdAt ? style.createdAt.slice(0, 10) : '');
     setEditStatus(style.status);
   };
@@ -85,6 +91,8 @@ export default function StyleList({ styles, onSelectStyle, onAddStyle, onUpdateS
       buyer: editBuyer,
       factory: editFactory,
       driveUrl: editDriveUrl,
+      patternQuantity: editPatternQuantity,
+      sampleQuantity: editSampleQuantity,
       createdAt: editCreatedAt ? new Date(editCreatedAt).toISOString() : editingStyle.createdAt,
       status: editStatus
     });
@@ -142,6 +150,8 @@ export default function StyleList({ styles, onSelectStyle, onAddStyle, onUpdateS
       buyer: newBuyer || 'Chưa cập nhật',
       factory: newFactory || 'Tổ mẫu trung tâm',
       driveUrl: newDriveUrl || undefined,
+      patternQuantity: newPatternQuantity,
+      sampleQuantity: newSampleQuantity,
       status: 'Active',
       createdBy: 'Nguyễn Văn Minh',
       createdAt: newCreatedAt ? new Date(newCreatedAt).toISOString() : new Date().toISOString(),
@@ -154,6 +164,8 @@ export default function StyleList({ styles, onSelectStyle, onAddStyle, onUpdateS
     setNewBuyer('');
     setNewFactory('');
     setNewDriveUrl('');
+    setNewPatternQuantity(1);
+    setNewSampleQuantity(1);
     setNewCreatedAt('');
     setCustomStageName('');
     setShowAddModal(false);
@@ -294,10 +306,10 @@ export default function StyleList({ styles, onSelectStyle, onAddStyle, onUpdateS
                       className="hover:bg-slate-50/60 transition-all cursor-pointer"
                       onClick={() => onSelectStyle(style.id)}
                     >
-                      {/* Code and Customer */}
+                      {/* Code, Customer & Quantities */}
                       <td className="p-4">
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-2">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-sans font-bold text-slate-800 text-sm hover:text-blue-600 transition-colors">
                               {style.styleCode}
                             </p>
@@ -320,6 +332,17 @@ export default function StyleList({ styles, onSelectStyle, onAddStyle, onUpdateS
                             <span>•</span>
                             <span>{style.season}</span>
                           </p>
+                          {/* Badges for Pattern and Sample Quantities */}
+                          <div className="flex items-center gap-1.5 pt-0.5">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200/80 rounded-md text-[10px] font-bold font-mono">
+                              <Scissors className="w-3 h-3 text-blue-600" />
+                              <span>{style.patternQuantity ?? 1} Rập</span>
+                            </span>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/80 rounded-md text-[10px] font-bold font-mono">
+                              <Shirt className="w-3 h-3 text-emerald-600" />
+                              <span>{style.sampleQuantity ?? 1} Mẫu</span>
+                            </span>
+                          </div>
                         </div>
                       </td>
 
@@ -492,6 +515,41 @@ export default function StyleList({ styles, onSelectStyle, onAddStyle, onUpdateS
                     value={newBuyer}
                     onChange={e => setNewBuyer(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 font-sans"
+                  />
+                </div>
+
+                {/* Số lượng rập & Số lượng mẫu */}
+                <div className="space-y-1.5 bg-blue-50/50 p-3 rounded-xl border border-blue-100/80">
+                  <label className="text-xs font-bold text-blue-900 font-sans flex items-center gap-1.5">
+                    <Scissors className="w-3.5 h-3.5 text-blue-600" />
+                    Số lượng Rập (Bộ rập) *
+                  </label>
+                  <input
+                    id="input-new-style-pattern-qty"
+                    type="number"
+                    min={0}
+                    required
+                    placeholder="VD: 1, 2, 3..."
+                    value={newPatternQuantity}
+                    onChange={e => setNewPatternQuantity(parseInt(e.target.value) || 0)}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 font-sans"
+                  />
+                </div>
+
+                <div className="space-y-1.5 bg-emerald-50/50 p-3 rounded-xl border border-emerald-100/80">
+                  <label className="text-xs font-bold text-emerald-900 font-sans flex items-center gap-1.5">
+                    <Shirt className="w-3.5 h-3.5 text-emerald-600" />
+                    Số lượng Mẫu (Chiếc may) *
+                  </label>
+                  <input
+                    id="input-new-style-sample-qty"
+                    type="number"
+                    min={0}
+                    required
+                    placeholder="VD: 1, 3, 5..."
+                    value={newSampleQuantity}
+                    onChange={e => setNewSampleQuantity(parseInt(e.target.value) || 0)}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-sm text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 font-sans"
                   />
                 </div>
 
@@ -677,6 +735,36 @@ export default function StyleList({ styles, onSelectStyle, onAddStyle, onUpdateS
                     <option value="OnHold">OnHold (Tạm hoãn)</option>
                     <option value="Cancelled">Cancelled (Đã hủy)</option>
                   </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5 bg-blue-50/50 p-2.5 rounded-xl border border-blue-100">
+                  <label className="text-xs font-bold text-blue-900 font-sans flex items-center gap-1">
+                    <Scissors className="w-3.5 h-3.5 text-blue-600" />
+                    Số lượng Rập
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={editPatternQuantity}
+                    onChange={e => setEditPatternQuantity(parseInt(e.target.value) || 0)}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-800 font-bold focus:ring-2 focus:ring-blue-500 font-sans"
+                  />
+                </div>
+
+                <div className="space-y-1.5 bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-100">
+                  <label className="text-xs font-bold text-emerald-900 font-sans flex items-center gap-1">
+                    <Shirt className="w-3.5 h-3.5 text-emerald-600" />
+                    Số lượng Mẫu
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={editSampleQuantity}
+                    onChange={e => setEditSampleQuantity(parseInt(e.target.value) || 0)}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-800 font-bold focus:ring-2 focus:ring-emerald-500 font-sans"
+                  />
                 </div>
               </div>
 

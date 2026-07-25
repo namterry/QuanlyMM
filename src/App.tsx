@@ -305,9 +305,12 @@ export default function App() {
       season: newStyleData.season,
       buyer: newStyleData.buyer,
       factory: newStyleData.factory,
+      driveUrl: newStyleData.driveUrl,
+      patternQuantity: newStyleData.patternQuantity ?? 1,
+      sampleQuantity: newStyleData.sampleQuantity ?? 1,
       status: 'Active',
       createdBy: currentUser.name,
-      createdAt: new Date().toISOString(),
+      createdAt: newStyleData.createdAt || new Date().toISOString(),
       stages: computedStages,
     };
 

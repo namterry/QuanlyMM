@@ -71,10 +71,28 @@ export default function Dashboard({ styles, users = USERS, onSelectStyle, onNavi
     const completed = styles.reduce((acc, s) => {
       return acc + s.stages.filter(st => st.assigneeId === user.id && st.status === 'Completed').length;
     }, 0);
+
+    let patternCount = 0;
+    let sampleCount = 0;
+    styles.forEach(s => {
+      s.stages.forEach(st => {
+        if (st.assigneeId === user.id) {
+          if (user.role === 'Pattern' || user.role === 'CAD' || st.stageType === 'Proto Sample' || st.stageType === 'Fit Sample') {
+            patternCount++;
+          }
+          if (user.role === 'Sample Room' || st.stageType === 'PP Sample' || st.stageType === 'Size Set Sample' || st.stageType === 'Sales Sample' || st.stageType === 'TOP Sample') {
+            sampleCount++;
+          }
+        }
+      });
+    });
+
     return {
       user,
       activeCount: assignedActive,
       completedCount: completed,
+      patternCount,
+      sampleCount,
     };
   });
 
@@ -286,21 +304,30 @@ export default function Dashboard({ styles, users = USERS, onSelectStyle, onNavi
             <p className="text-xs text-slate-500 font-sans">Số lượng Giai đoạn mẫu đang đảm nhiệm thực tế</p>
 
             <div className="space-y-4">
-              {userWorkloads.map(({ user, activeCount, completedCount }) => {
+              {userWorkloads.map(({ user, activeCount, completedCount, patternCount, sampleCount }) => {
                 const totalAssigned = activeCount + completedCount;
-                const percent = totalAssigned > 0 ? Math.round((completedCount / totalAssigned) * 100) : 0;
                 
                 return (
                   <div key={user.id} className="space-y-1.5" id={`workload-user-${user.id}`}>
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-1">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <img src={user.avatar} alt={user.name} className="w-5 h-5 rounded-full object-cover" referrerPolicy="no-referrer" />
                         <span className="font-medium text-slate-700 font-sans">{user.name}</span>
                         <span className="text-[10px] bg-slate-100 text-slate-500 font-mono px-1.5 py-0.5 rounded uppercase">
                           {user.role}
                         </span>
+                        {patternCount > 0 && (
+                          <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 font-mono px-1.5 py-0.5 rounded font-semibold">
+                            {patternCount} rập
+                          </span>
+                        )}
+                        {sampleCount > 0 && (
+                          <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono px-1.5 py-0.5 rounded font-semibold">
+                            {sampleCount} mẫu
+                          </span>
+                        )}
                       </div>
-                      <div className="font-mono text-slate-600">
+                      <div className="font-mono text-slate-600 self-end sm:self-auto">
                         <span className="text-blue-600 font-bold">{activeCount} đang làm</span>
                         <span className="mx-1">/</span>
                         <span className="text-emerald-600">{completedCount} xong</span>
