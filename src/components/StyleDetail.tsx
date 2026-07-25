@@ -10,6 +10,7 @@ import {
 interface StyleDetailProps {
   style: Style;
   currentUser: User;
+  users?: User[];
   onBack: () => void;
   onUpdateStage: (stageId: string, updatedFields: Partial<Stage>) => void;
   onAddAttachment: (stageId: string, fileType: FileType, fileName: string, fileSize: string, fileUrl?: string) => void;
@@ -24,6 +25,7 @@ interface StyleDetailProps {
 export default function StyleDetail({
   style,
   currentUser,
+  users = USERS,
   onBack,
   onUpdateStage,
   onAddAttachment,
@@ -577,7 +579,7 @@ export default function StyleDetail({
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-700 font-sans focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Chưa phân công nhân viên</option>
-                      {USERS.map(u => (
+                      {users.map(u => (
                         <option key={u.id} value={u.id}>
                           {u.name} ({u.role})
                         </option>

@@ -1,13 +1,14 @@
 import React from 'react';
-import { Style } from '../types';
+import { Style, User } from '../types';
 import { USERS } from '../data/initialData';
 import { FileSpreadsheet, FileText, BarChart, Clock, CheckSquare, Award, ArrowUpRight } from 'lucide-react';
 
 interface ReportsProps {
   styles: Style[];
+  users?: User[];
 }
 
-export default function Reports({ styles }: ReportsProps) {
+export default function Reports({ styles, users = USERS }: ReportsProps) {
   const [exportState, setExportState] = React.useState<{ exporting: boolean; format: 'Excel' | 'PDF' | null }>({ exporting: false, format: null });
 
   // 1. Calculate Average Lead Times per stage type
@@ -38,7 +39,7 @@ export default function Reports({ styles }: ReportsProps) {
   }));
 
   // 2. Employee Productivity Summary
-  const userProductivity = USERS.map(user => {
+  const userProductivity = users.map(user => {
     let completedInTime = 0;
     let completedLate = 0;
     let totalCompleted = 0;

@@ -15,6 +15,7 @@ import Reports from './components/Reports';
 import NotificationsCenter from './components/NotificationsCenter';
 import RoleSwitcher from './components/RoleSwitcher';
 import GarmentAI from './components/GarmentAI';
+import PersonnelManagerModal from './components/PersonnelManagerModal';
 
 // Icons
 import { Layers, Kanban, Calendar, TrendingUp, History, Shield, Menu, X, Bell, Plus, Search, Sparkles } from 'lucide-react';
@@ -26,8 +27,13 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [headerSearch, setHeaderSearch] = React.useState('');
 
-  // Simulation parameters
-  const [currentUser, setCurrentUser] = React.useState<User>(USERS[0]); // Nguyễn Văn Minh (Admin)
+  // Personnel state & simulation
+  const [users, setUsers] = React.useState<User[]>(() => {
+    const saved = localStorage.getItem('s_users');
+    return saved ? JSON.parse(saved) : USERS;
+  });
+  const [currentUser, setCurrentUser] = React.useState<User>(users[0] || USERS[0]);
+  const [showPersonnelModal, setShowPersonnelModal] = React.useState(false);
   
   // App state
   const [styles, setStyles] = React.useState<Style[]>(INITIAL_STYLES);
@@ -38,6 +44,11 @@ export default function App() {
   const [isFallbackLocalStorage, setIsFallbackLocalStorage] = React.useState(false);
   const [firebaseError, setFirebaseError] = React.useState<string | null>(null);
   const [reconnectAttempts, setReconnectAttempts] = React.useState(0);
+
+  // Sync users to local storage
+  React.useEffect(() => {
+    localStorage.setItem('s_users', JSON.stringify(users));
+  }, [users]);
 
   // Sync to local storage as backup / fallback
   React.useEffect(() => {
@@ -207,6 +218,41 @@ export default function App() {
   }, [isFallbackLocalStorage, reconnectAttempts]);
 
   // Actions
+
+  // User Management Actions
+  const handleUpdateUser = (userId: string, updatedFields: Partial<User>) => {
+    setUsers(prev => {
+      const nextUsers = prev.map(u => u.id === userId ? { ...u, ...updatedFields } : u);
+      if (currentUser.id === userId) {
+        const updatedCurr = nextUsers.find(u => u.id === userId);
+        if (updatedCurr) setCurrentUser(updatedCurr);
+      }
+      return nextUsers;
+    });
+  };
+
+  const handleAddUser = (newUser: Omit<User, 'id'>) => {
+    const created: User = {
+      ...newUser,
+      id: `user-${Date.now().toString(36)}`
+    };
+    setUsers(prev => [...prev, created]);
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    setUsers(prev => {
+      const filtered = prev.filter(u => u.id !== userId);
+      if (currentUser.id === userId && filtered.length > 0) {
+        setCurrentUser(filtered[0]);
+      }
+      return filtered;
+    });
+  };
+
+  const handleResetUsers = () => {
+    setUsers(USERS);
+    setCurrentUser(USERS[0]);
+  };
 
   // 1. Create new style with customized workflow configuration
   const handleAddStyle = async (newStyleData: Omit<Style, 'id' | 'stages'> & { stages: { stageType: StageType; deadlineDays: number }[] }) => {
@@ -936,8 +982,13 @@ export default function App() {
 
             <div className="w-px h-5 bg-slate-200 hidden md:block"></div>
 
-            {/* Profile display info inside header */}
-            <div className="hidden sm:flex items-center gap-2 pl-1">
+            {/* Profile display info inside header (Click to open Personnel Manager) */}
+            <button
+              id="btn-header-profile-manager"
+              onClick={() => setShowPersonnelModal(true)}
+              title="Bấm để Quản lý Nhân sự, đổi Tên, Vị trí & Avatar"
+              className="hidden sm:flex items-center gap-2 pl-1.5 pr-2.5 py-1 hover:bg-slate-100 rounded-xl transition-all border border-transparent hover:border-slate-200 cursor-pointer text-left"
+            >
               <img
                 src={currentUser.avatar}
                 alt={currentUser.name}
@@ -945,10 +996,13 @@ export default function App() {
                 referrerPolicy="no-referrer"
               />
               <div className="text-left leading-none hidden md:block">
-                <p className="text-[10px] font-bold text-slate-800 font-sans">{currentUser.name.split(' (')[0]}</p>
+                <p className="text-[10px] font-bold text-slate-800 font-sans flex items-center gap-1">
+                  <span>{currentUser.name.split(' (')[0]}</span>
+                  <span className="text-[9px] text-blue-600 font-medium">Sửa</span>
+                </p>
                 <span className="text-[8px] text-blue-600 font-bold uppercase tracking-wider font-sans mt-0.5 block">{currentUser.role}</span>
               </div>
-            </div>
+            </button>
 
             {/* Mobile menu toggle */}
             <button
@@ -1009,6 +1063,7 @@ export default function App() {
                     <StyleDetail
                       style={selectedStyle}
                       currentUser={currentUser}
+                      users={users}
                       onBack={() => setSelectedStyleId(null)}
                       onUpdateStage={handleUpdateStage}
                       onAddAttachment={handleAddAttachment}
@@ -1047,7 +1102,7 @@ export default function App() {
             }
 
             if (activeTab === 'reports') {
-              return <Reports styles={styles} />;
+              return <Reports styles={styles} users={users} />;
             }
 
             if (activeTab === 'ai') {
@@ -1082,8 +1137,23 @@ export default function App() {
       <RoleSwitcher
         currentRole={currentUser.role}
         currentUser={currentUser}
+        users={users}
         onUserChange={setCurrentUser}
+        onOpenPersonnelManager={() => setShowPersonnelModal(true)}
       />
+
+      {/* Personnel Management Modal */}
+      {showPersonnelModal && (
+        <PersonnelManagerModal
+          users={users}
+          currentUser={currentUser}
+          onClose={() => setShowPersonnelModal(false)}
+          onUpdateUser={handleUpdateUser}
+          onAddUser={handleAddUser}
+          onDeleteUser={handleDeleteUser}
+          onResetUsers={handleResetUsers}
+        />
+      )}
     </div>
   );
 }
