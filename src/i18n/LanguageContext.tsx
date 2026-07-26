@@ -138,8 +138,8 @@ export interface Translations {
 const translations: Record<Language, Translations> = {
   vi: {
     // Navigation & Header
-    appTitle: 'Garment Sample Tracker',
-    appSubtitle: 'Quản lý Tiến độ Mẫu & Quy trình Garment',
+    appTitle: 'KLM Garment Tracker',
+    appSubtitle: 'Hệ thống Quản lý Tiến độ May Mẫu KLM',
     searchPlaceholder: 'Tìm mã style, khách hàng, buyer...',
     tabDashboard: 'Tổng quan',
     tabStyles: 'Danh sách Style',
@@ -270,8 +270,8 @@ const translations: Record<Language, Translations> = {
   },
   en: {
     // Navigation & Header
-    appTitle: 'Garment Sample Tracker',
-    appSubtitle: 'Sample Development & Workflow Management',
+    appTitle: 'KLM Sample Tracker',
+    appSubtitle: 'KLM Garment Sample Development & Workflow System',
     searchPlaceholder: 'Search style code, customer, buyer...',
     tabDashboard: 'Overview',
     tabStyles: 'Style List',

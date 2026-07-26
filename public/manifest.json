@@ -1,7 +1,7 @@
 {
-  "short_name": "GarmentTracker",
-  "name": "Garment Sample Tracker",
-  "description": "Quản lý Tiến độ Mẫu & Quy trình Garment Sample Tracker",
+  "short_name": "KLM",
+  "name": "KLM Garment Tracker",
+  "description": "Quản lý Tiến độ Mẫu & Quy trình May Mẫu KLM",
   "icons": [
     {
       "src": "/pwa-192.png",

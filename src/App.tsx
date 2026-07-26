@@ -4,7 +4,7 @@ import { DEPARTMENTS, USERS, INITIAL_STYLES, INITIAL_ATTACHMENTS, INITIAL_LOGS, 
 
 // Firebase imports
 import { collection, onSnapshot, doc, setDoc, getDocs, deleteDoc } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from './firebase';
+import { db, handleFirestoreError, OperationType, ensureAuth } from './firebase';
 
 // Modular Screen imports
 import Dashboard from './components/Dashboard';
@@ -21,7 +21,7 @@ import InstallPwaModal from './components/InstallPwaModal';
 import { useLanguage } from './i18n/LanguageContext';
 
 // Icons
-import { Layers, Kanban, Calendar, TrendingUp, History, Shield, Menu, X, Bell, Plus, Search, Sparkles, Smartphone, Download } from 'lucide-react';
+import { Layers, Kanban, Calendar, TrendingUp, History, Shield, Menu, X, Bell, Plus, Search, Sparkles, Smartphone, Download, RefreshCw, CloudUpload, Info, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 export default function App() {
   const { t } = useLanguage();
@@ -63,6 +63,9 @@ export default function App() {
   const [isFallbackLocalStorage, setIsFallbackLocalStorage] = React.useState(false);
   const [firebaseError, setFirebaseError] = React.useState<string | null>(null);
   const [reconnectAttempts, setReconnectAttempts] = React.useState(0);
+  const [isSyncing, setIsSyncing] = React.useState(false);
+  const [syncStatusMsg, setSyncStatusMsg] = React.useState<string | null>(null);
+  const [showErrorDetailsModal, setShowErrorDetailsModal] = React.useState(false);
 
   // Sync users to local storage
   React.useEffect(() => {
@@ -85,6 +88,52 @@ export default function App() {
   React.useEffect(() => {
     localStorage.setItem('s_notifications', JSON.stringify(notifications));
   }, [notifications]);
+
+  // Function to push data from LocalStorage to Firestore Cloud
+  const handleSyncLocalToFirestore = async () => {
+    setIsSyncing(true);
+    setSyncStatusMsg("Đang kết nối & đẩy toàn bộ dữ liệu từ localStorage lên Firestore Cloud...");
+    try {
+      await ensureAuth();
+
+      const savedStyles = localStorage.getItem('s_styles');
+      const savedAttachments = localStorage.getItem('s_attachments');
+      const savedLogs = localStorage.getItem('s_logs');
+      const savedNotifications = localStorage.getItem('s_notifications');
+
+      const stylesToSync: Style[] = savedStyles ? JSON.parse(savedStyles) : styles;
+      const attsToSync: Attachment[] = savedAttachments ? JSON.parse(savedAttachments) : attachments;
+      const logsToSync: ActivityLog[] = savedLogs ? JSON.parse(savedLogs) : logs;
+      const notifsToSync: Notification[] = savedNotifications ? JSON.parse(savedNotifications) : notifications;
+
+      let syncedCount = 0;
+      for (const st of stylesToSync) {
+        await setDoc(doc(db, 'styles', st.id), st, { merge: true });
+        syncedCount++;
+      }
+      for (const att of attsToSync) {
+        await setDoc(doc(db, 'attachments', att.id), att, { merge: true });
+      }
+      for (const lg of logsToSync) {
+        await setDoc(doc(db, 'logs', lg.id), lg, { merge: true });
+      }
+      for (const nt of notifsToSync) {
+        await setDoc(doc(db, 'notifications', nt.id), nt, { merge: true });
+      }
+
+      setIsFallbackLocalStorage(false);
+      setFirebaseError(null);
+      setSyncStatusMsg(`Đã đồng bộ thành công ${syncedCount} mã hàng và các dữ liệu liên quan lên Cloud!`);
+      setReconnectAttempts(prev => prev + 1);
+      setTimeout(() => setSyncStatusMsg(null), 6000);
+    } catch (err: any) {
+      const formatted = handleFirestoreError(err, OperationType.WRITE, "sync-all");
+      setFirebaseError(formatted);
+      setSyncStatusMsg(`Đồng bộ chưa thành công: ${err?.message || 'Lỗi quyền truy cập'}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Sync with Firestore in real-time
   React.useEffect(() => {
@@ -145,6 +194,12 @@ export default function App() {
     }
 
     async function initFirebase() {
+      try {
+        await ensureAuth();
+      } catch (authErr) {
+        console.warn("Auth initialization note:", authErr);
+      }
+
       await seedDatabaseIfEmpty();
 
       if (!isSubscribed) return;
@@ -161,9 +216,11 @@ export default function App() {
             list.push(doc.data() as Style);
           });
           setStyles(list.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+          setIsFallbackLocalStorage(false);
+          setFirebaseError(null);
         }, (error) => {
-          handleFirestoreError(error, OperationType.LIST, "styles");
-          triggerLocalFallback(error.message);
+          const errFormatted = handleFirestoreError(error, OperationType.LIST, "styles");
+          triggerLocalFallback(errFormatted);
         });
 
         unsubAttachments = onSnapshot(collection(db, "attachments"), (snapshot) => {
@@ -173,8 +230,8 @@ export default function App() {
           });
           setAttachments(list.sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt)));
         }, (error) => {
-          handleFirestoreError(error, OperationType.LIST, "attachments");
-          triggerLocalFallback(error.message);
+          const errFormatted = handleFirestoreError(error, OperationType.LIST, "attachments");
+          triggerLocalFallback(errFormatted);
         });
 
         unsubLogs = onSnapshot(collection(db, "logs"), (snapshot) => {
@@ -184,8 +241,8 @@ export default function App() {
           });
           setLogs(list.sort((a, b) => b.changedAt.localeCompare(a.changedAt)));
         }, (error) => {
-          handleFirestoreError(error, OperationType.LIST, "logs");
-          triggerLocalFallback(error.message);
+          const errFormatted = handleFirestoreError(error, OperationType.LIST, "logs");
+          triggerLocalFallback(errFormatted);
         });
 
         unsubNotifications = onSnapshot(collection(db, "notifications"), (snapshot) => {
@@ -195,8 +252,8 @@ export default function App() {
           });
           setNotifications(list.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
         }, (error) => {
-          handleFirestoreError(error, OperationType.LIST, "notifications");
-          triggerLocalFallback(error.message);
+          const errFormatted = handleFirestoreError(error, OperationType.LIST, "notifications");
+          triggerLocalFallback(errFormatted);
         });
       } catch (error: any) {
         console.warn("Error subscribing to Firestore, falling back:", error);
@@ -736,13 +793,13 @@ export default function App() {
       {/* Sidebar Navigation: Desktop View */}
       <aside className="w-60 h-full bg-[#0F172A] text-slate-300 flex flex-col border-r border-slate-800 shrink-0 hidden md:flex" id="desktop-sidebar">
         {/* Brand header */}
-        <div className="p-4 flex items-center gap-2 border-b border-slate-800 bg-[#1E293B]">
-          <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center shadow-md shrink-0">
-            <span className="text-white font-extrabold text-sm font-display">GD</span>
+        <div className="p-4 flex items-center gap-2.5 border-b border-slate-800 bg-[#1E293B]">
+          <div className="w-9 h-9 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-md shrink-0 border border-blue-400/30">
+            <span className="text-white font-black text-sm font-display tracking-wide">KLM</span>
           </div>
           <div className="overflow-hidden">
-            <h2 className="font-display font-extrabold text-white text-xs tracking-tight uppercase leading-none truncate">GarmentFlow Pro</h2>
-            <span className="text-[9px] text-slate-500 font-mono tracking-widest uppercase block mt-1 truncate">Sample Lifecycle</span>
+            <h2 className="font-display font-black text-white text-sm tracking-tight uppercase leading-none truncate">KLM</h2>
+            <span className="text-[9px] text-blue-400 font-mono tracking-widest uppercase block mt-1 truncate font-bold">Garment System</span>
           </div>
         </div>
 
@@ -849,13 +906,13 @@ export default function App() {
           {/* Sidebar drawer body */}
           <aside className="relative w-64 h-full bg-[#0F172A] text-slate-300 flex flex-col z-50 animate-in slide-in-from-left duration-200">
             <div className="p-4 flex items-center justify-between border-b border-slate-800 bg-[#1E293B]">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
-                  <span className="text-white font-extrabold text-xs font-display">GD</span>
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-md shrink-0 border border-blue-400/30">
+                  <span className="text-white font-black text-xs font-display tracking-wide">KLM</span>
                 </div>
                 <div>
-                  <h2 className="font-display font-extrabold text-white text-xs tracking-tight uppercase leading-none">GarmentFlow</h2>
-                  <span className="text-[9px] text-slate-500 font-mono tracking-widest uppercase block mt-1">Sample Lifecycle</span>
+                  <h2 className="font-display font-black text-white text-sm tracking-tight uppercase leading-none">KLM</h2>
+                  <span className="text-[9px] text-blue-400 font-mono tracking-widest uppercase block mt-1 font-bold">Garment System</span>
                 </div>
               </div>
               <button onClick={() => setMobileMenuOpen(false)} className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800/80">
@@ -951,7 +1008,7 @@ export default function App() {
 
             {/* Mobile Brand indicator */}
             <div className="flex items-center gap-2 md:hidden">
-              <div className="bg-blue-600 text-white p-1 rounded font-extrabold text-xs">GD</div>
+              <div className="bg-gradient-to-tr from-blue-600 to-indigo-600 text-white px-2 py-1 rounded-lg font-black text-xs font-display tracking-wider border border-blue-400/30">KLM</div>
             </div>
 
             {/* Global Search Tool with results popover */}
@@ -1074,28 +1131,59 @@ export default function App() {
           </div>
         </header>
 
-        {/* Fallback local storage mode banner if Firestore has permission issues */}
-        {isFallbackLocalStorage && (
-          <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-between text-xs text-amber-800 shrink-0" id="firebase-fallback-banner">
+        {/* Sync Status Banner */}
+        {syncStatusMsg && (
+          <div className="bg-blue-600 text-white px-4 py-2 text-xs font-bold flex items-center justify-between shrink-0 animate-in fade-in" id="firebase-sync-status-banner">
             <div className="flex items-center gap-2">
-              <span className="font-bold flex items-center gap-1">
-                ⚠️ Lưu trữ cục bộ (Offline Mode):
-              </span>
-              <span>Firestore không có quyền truy cập. Dữ liệu của bạn đang được tự động sao lưu an toàn tại Trình duyệt (localStorage).</span>
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+              <span>{syncStatusMsg}</span>
             </div>
-            <div className="flex items-center gap-3">
-              <code className="text-[10px] bg-amber-100 px-1.5 py-0.5 rounded text-amber-900 font-mono hidden md:inline">
-                Quyền Firestore chưa được cấu hình
-              </code>
+            <button onClick={() => setSyncStatusMsg(null)} className="hover:opacity-80 text-xs underline font-sans cursor-pointer">Đóng</button>
+          </div>
+        )}
+
+        {/* Fallback local storage mode banner if Firestore has permission or connectivity issues */}
+        {isFallbackLocalStorage && (
+          <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-amber-900 shrink-0" id="firebase-fallback-banner">
+            <div className="flex items-center gap-2 flex-1 min-w-[280px]">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <div>
+                <span className="font-bold text-amber-900">⚠️ Đang sử dụng Lưu trữ Cục bộ (localStorage)</span>
+                <p className="text-[11px] text-amber-800 font-sans mt-0.5">
+                  Chưa thể kết nối Firestore Cloud. Dữ liệu của bạn được sao lưu an toàn tại Trình duyệt.
+                  {firebaseError && <span className="ml-1 font-mono text-[10px] bg-amber-100 px-1.5 py-0.5 rounded text-amber-900 truncate inline-block max-w-[240px] align-bottom">[{firebaseError}]</span>}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={handleSyncLocalToFirestore}
+                disabled={isSyncing}
+                className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold px-3 py-1 rounded-lg transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                title="Tải tất cả dữ liệu lưu trữ local đẩy lên Firestore Cloud"
+              >
+                <CloudUpload className={`w-3.5 h-3.5 ${isSyncing ? 'animate-bounce' : ''}`} />
+                <span>{isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ lên Cloud'}</span>
+              </button>
+
               <button 
                 onClick={() => {
                   setIsFallbackLocalStorage(false);
                   setFirebaseError(null);
                   setReconnectAttempts(prev => prev + 1);
                 }}
-                className="text-amber-600 hover:text-amber-800 font-bold underline cursor-pointer"
+                className="flex items-center gap-1 bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-[11px] px-2.5 py-1 rounded-lg transition-all cursor-pointer"
               >
-                Thử kết nối lại
+                <RefreshCw className="w-3 h-3 text-amber-700" />
+                <span>Thử kết nối lại</span>
+              </button>
+
+              <button 
+                onClick={() => setShowErrorDetailsModal(true)}
+                className="flex items-center gap-1 text-amber-700 hover:text-amber-900 underline text-[11px] font-semibold px-1 py-1 cursor-pointer"
+              >
+                <Info className="w-3.5 h-3.5" />
+                <span>Chi tiết lỗi</span>
               </button>
             </div>
           </div>
@@ -1222,6 +1310,62 @@ export default function App() {
         deferredPrompt={deferredPrompt}
         setDeferredPrompt={setDeferredPrompt}
       />
+
+      {/* Detailed Firestore Error & Sync Modal */}
+      {showErrorDetailsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in" id="firebase-error-details-modal">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 text-slate-800 space-y-4 font-sans">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2 text-amber-600 font-bold font-display text-sm">
+                <AlertTriangle className="w-5 h-5" />
+                <span>Chi Tiết Lỗi Kết Nối Firestore</span>
+              </div>
+              <button onClick={() => setShowErrorDetailsModal(false)} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="bg-slate-900 text-amber-400 p-3 rounded-xl font-mono text-[11px] overflow-x-auto break-all border border-slate-800">
+                <p className="text-slate-400 font-sans font-bold text-[10px] mb-1 uppercase tracking-wider">Thông tin lỗi log chi tiết:</p>
+                {firebaseError || "Chưa ghi nhận lỗi cụ thể. Hệ thống chuyển sang chế độ tự động lưu trữ tại trình duyệt (localStorage)."}
+              </div>
+
+              <div className="bg-blue-50 border border-blue-100 p-3 rounded-xl text-blue-900 space-y-2">
+                <h4 className="font-bold flex items-center gap-1.5 text-xs">
+                  <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                  Trạng thái cấu hình & Hướng dẫn xử lý:
+                </h4>
+                <ul className="list-disc list-inside text-[11px] space-y-1.5 text-blue-800">
+                  <li><strong>Lỗi Permission Denied:</strong> Đã cập nhật rules `allow read, write: if true;` trên `firestore.rules`. Bấm nút "Đồng bộ ngay lên Cloud" bên dưới để tải toàn bộ dữ liệu local lên lại database.</li>
+                  <li><strong>Lỗi Tự Động Xác Thực (Auth):</strong> Đã kích hoạt Anonymous Auth để đảm bảo luôn có token phiên làm việc trước khi thực hiện ghi dữ liệu.</li>
+                  <li><strong>Đồng Bộ An Toàn:</strong> Toàn bộ thao tác tạo mới mã hàng, cập nhật giai đoạn, đính kèm file trong thời gian offline đã được lưu lại đầy đủ ở localStorage và sẵn sàng đẩy lên Firestore.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                onClick={() => {
+                  setShowErrorDetailsModal(false);
+                  handleSyncLocalToFirestore();
+                }}
+                disabled={isSyncing}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <CloudUpload className="w-3.5 h-3.5" />
+                <span>{isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ Local lên Cloud ngay'}</span>
+              </button>
+              <button
+                onClick={() => setShowErrorDetailsModal(false)}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-4 py-2 rounded-xl transition-all cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
