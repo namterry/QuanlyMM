@@ -51,8 +51,33 @@ export default function App() {
     const saved = localStorage.getItem('s_users');
     return saved ? JSON.parse(saved) : USERS;
   });
-  const [currentUser, setCurrentUser] = React.useState<User>(users[0] || USERS[0]);
+
+  const [currentUserId, setCurrentUserId] = React.useState<string>(() => {
+    const savedId = localStorage.getItem('s_current_user_id');
+    if (savedId) return savedId;
+    return (users[0] && users[0].id) ? users[0].id : USERS[0].id;
+  });
+
+  // Derived currentUser dynamically from users array
+  const currentUser = React.useMemo(() => {
+    return users.find(u => u.id === currentUserId) || users[0] || USERS[0];
+  }, [users, currentUserId]);
+
+  const setCurrentUser = (user: User) => {
+    setCurrentUserId(user.id);
+  };
+
   const [showPersonnelModal, setShowPersonnelModal] = React.useState(false);
+
+  // Sync active current user ID to local storage
+  React.useEffect(() => {
+    localStorage.setItem('s_current_user_id', currentUserId);
+  }, [currentUserId]);
+
+  // Sync users to local storage
+  React.useEffect(() => {
+    localStorage.setItem('s_users', JSON.stringify(users));
+  }, [users]);
   
   // App state
   const [styles, setStyles] = React.useState<Style[]>(INITIAL_STYLES);
@@ -96,17 +121,22 @@ export default function App() {
     try {
       await ensureAuth();
 
+      const savedUsers = localStorage.getItem('s_users');
       const savedStyles = localStorage.getItem('s_styles');
       const savedAttachments = localStorage.getItem('s_attachments');
       const savedLogs = localStorage.getItem('s_logs');
       const savedNotifications = localStorage.getItem('s_notifications');
 
+      const usersToSync: User[] = savedUsers ? JSON.parse(savedUsers) : users;
       const stylesToSync: Style[] = savedStyles ? JSON.parse(savedStyles) : styles;
       const attsToSync: Attachment[] = savedAttachments ? JSON.parse(savedAttachments) : attachments;
       const logsToSync: ActivityLog[] = savedLogs ? JSON.parse(savedLogs) : logs;
       const notifsToSync: Notification[] = savedNotifications ? JSON.parse(savedNotifications) : notifications;
 
       let syncedCount = 0;
+      for (const u of usersToSync) {
+        await setDoc(doc(db, 'users', u.id), u, { merge: true });
+      }
       for (const st of stylesToSync) {
         await setDoc(doc(db, 'styles', st.id), st, { merge: true });
         syncedCount++;
@@ -123,7 +153,7 @@ export default function App() {
 
       setIsFallbackLocalStorage(false);
       setFirebaseError(null);
-      setSyncStatusMsg(`Đã đồng bộ thành công ${syncedCount} mã hàng và các dữ liệu liên quan lên Cloud!`);
+      setSyncStatusMsg(`Đã đồng bộ thành công nhân sự, ${syncedCount} mã hàng và dữ liệu lên Cloud!`);
       setReconnectAttempts(prev => prev + 1);
       setTimeout(() => setSyncStatusMsg(null), 6000);
     } catch (err: any) {
@@ -146,11 +176,13 @@ export default function App() {
       setFirebaseError(errMessage);
       
       // Load from local storage if available
+      const savedUsers = localStorage.getItem('s_users');
       const savedStyles = localStorage.getItem('s_styles');
       const savedAttachments = localStorage.getItem('s_attachments');
       const savedLogs = localStorage.getItem('s_logs');
       const savedNotifications = localStorage.getItem('s_notifications');
 
+      setUsers(savedUsers ? JSON.parse(savedUsers) : USERS);
       setStyles(savedStyles ? JSON.parse(savedStyles) : INITIAL_STYLES);
       setAttachments(savedAttachments ? JSON.parse(savedAttachments) : INITIAL_ATTACHMENTS);
       setLogs(savedLogs ? JSON.parse(savedLogs) : INITIAL_LOGS);
@@ -159,6 +191,13 @@ export default function App() {
 
     async function seedDatabaseIfEmpty() {
       try {
+        const usersSnap = await getDocs(collection(db, "users"));
+        if (usersSnap.empty) {
+          console.log("Seeding USERS to Firestore...");
+          for (const item of USERS) {
+            await setDoc(doc(db, "users", item.id), item);
+          }
+        }
         const stylesSnap = await getDocs(collection(db, "styles"));
         if (stylesSnap.empty) {
           console.log("Seeding INITIAL_STYLES...");
@@ -204,12 +243,26 @@ export default function App() {
 
       if (!isSubscribed) return;
 
+      let unsubUsers = () => {};
       let unsubStyles = () => {};
       let unsubAttachments = () => {};
       let unsubLogs = () => {};
       let unsubNotifications = () => {};
 
       try {
+        unsubUsers = onSnapshot(collection(db, "users"), (snapshot) => {
+          const list: User[] = [];
+          snapshot.forEach(doc => {
+            list.push(doc.data() as User);
+          });
+          if (list.length > 0) {
+            setUsers(list);
+          }
+        }, (error) => {
+          const errFormatted = handleFirestoreError(error, OperationType.LIST, "users");
+          triggerLocalFallback(errFormatted);
+        });
+
         unsubStyles = onSnapshot(collection(db, "styles"), (snapshot) => {
           const list: Style[] = [];
           snapshot.forEach(doc => {
@@ -261,6 +314,7 @@ export default function App() {
       }
 
       return () => {
+        unsubUsers();
         unsubStyles();
         unsubAttachments();
         unsubLogs();
@@ -296,38 +350,61 @@ export default function App() {
   // Actions
 
   // User Management Actions
-  const handleUpdateUser = (userId: string, updatedFields: Partial<User>) => {
-    setUsers(prev => {
-      const nextUsers = prev.map(u => u.id === userId ? { ...u, ...updatedFields } : u);
-      if (currentUser.id === userId) {
-        const updatedCurr = nextUsers.find(u => u.id === userId);
-        if (updatedCurr) setCurrentUser(updatedCurr);
-      }
-      return nextUsers;
-    });
+  const handleUpdateUser = async (userId: string, updatedFields: Partial<User>) => {
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updatedFields } : u));
+
+    try {
+      await setDoc(doc(db, 'users', userId), updatedFields, { merge: true });
+    } catch (err: any) {
+      console.warn("Failed to update user in Firestore:", err);
+      handleFirestoreError(err, OperationType.WRITE, `users/${userId}`);
+    }
   };
 
-  const handleAddUser = (newUser: Omit<User, 'id'>) => {
+  const handleAddUser = async (newUser: Omit<User, 'id'>) => {
     const created: User = {
       ...newUser,
       id: `user-${Date.now().toString(36)}`
     };
+
     setUsers(prev => [...prev, created]);
+
+    try {
+      await setDoc(doc(db, 'users', created.id), created);
+    } catch (err: any) {
+      console.warn("Failed to add user to Firestore:", err);
+      handleFirestoreError(err, OperationType.WRITE, `users/${created.id}`);
+    }
   };
 
-  const handleDeleteUser = (userId: string) => {
+  const handleDeleteUser = async (userId: string) => {
     setUsers(prev => {
       const filtered = prev.filter(u => u.id !== userId);
-      if (currentUser.id === userId && filtered.length > 0) {
-        setCurrentUser(filtered[0]);
+      if (currentUserId === userId && filtered.length > 0) {
+        setCurrentUserId(filtered[0].id);
       }
       return filtered;
     });
+
+    try {
+      await deleteDoc(doc(db, 'users', userId));
+    } catch (err: any) {
+      console.warn("Failed to delete user from Firestore:", err);
+      handleFirestoreError(err, OperationType.DELETE, `users/${userId}`);
+    }
   };
 
-  const handleResetUsers = () => {
+  const handleResetUsers = async () => {
     setUsers(USERS);
-    setCurrentUser(USERS[0]);
+    if (USERS[0]) setCurrentUserId(USERS[0].id);
+
+    try {
+      for (const u of USERS) {
+        await setDoc(doc(db, 'users', u.id), u);
+      }
+    } catch (err: any) {
+      console.warn("Failed to reset users in Firestore:", err);
+    }
   };
 
   // 1. Create new style with customized workflow configuration
@@ -428,8 +505,8 @@ export default function App() {
         newVal = updatedFields.status;
         logAction = `Cập nhật Trạng thái giai đoạn "${st.stageType}"`;
       } else if (updatedFields.assigneeId !== undefined && updatedFields.assigneeId !== st.assigneeId) {
-        const oldUser = USERS.find(u => u.id === st.assigneeId);
-        const newUser = USERS.find(u => u.id === updatedFields.assigneeId);
+        const oldUser = users.find(u => u.id === st.assigneeId);
+        const newUser = users.find(u => u.id === updatedFields.assigneeId);
         oldVal = oldUser ? oldUser.name : 'Chưa có';
         newVal = newUser ? newUser.name : 'Không gán';
         logAction = `Phân công phụ trách giai đoạn "${st.stageType}"`;

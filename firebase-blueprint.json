@@ -177,9 +177,44 @@
         "isRead",
         "createdAt"
       ]
+    },
+    "User": {
+      "title": "User",
+      "description": "Represents a staff member or admin user.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "departmentId": {
+          "type": "string"
+        },
+        "avatar": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "role",
+        "departmentId"
+      ]
     }
   },
   "firestore": {
+    "users": {
+      "schema": "User",
+      "description": "User profiles and personnel accounts."
+    },
     "styles": {
       "schema": "Style",
       "description": "Main style collection with nested stage list."
